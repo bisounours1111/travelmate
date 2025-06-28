@@ -498,6 +498,13 @@ struct BookingView: View {
                         },
                         onFailure: { error in
                             errorMessage = error
+                        },
+                        onReservationConfirmed: {
+                            Task {
+                                if let currentUser = authService.currentUser {
+                                    await reservationService.fetchReservations(for: currentUser.id)
+                                }
+                            }
                         }
                     )
                 }

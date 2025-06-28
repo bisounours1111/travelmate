@@ -32,7 +32,6 @@ class StripePaymentService: NSObject, ObservableObject {
     
     // Configuration Stripe
     private let publishableKey = "pk_test_51ReySuFMFs1dsPI2CShuVgACTBDdGXlQfZK9QjzNfFFmXZrDe7qslaK38Su9qNrWXETGKc0zzk1qdJpDRSQd6eyh0080sH3Q6Z"
-    private let backendURL = "https://votre-backend.com" // À remplacer par votre backend
     
     func createPaymentIntent(amount: Int, currency: String = "eur") async -> (success: Bool, clientSecret: String?) {
         isLoading = true
@@ -41,10 +40,14 @@ class StripePaymentService: NSObject, ObservableObject {
         
         do {
             // Créer la requête pour le Payment Intent
-            let url = URL(string: "\(backendURL)/create-payment-intent")!
+            guard let url = URL(string: BackendConfig.createPaymentIntent) else {
+                throw BackendConfig.NetworkError.invalidURL
+            }
+            
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.timeoutInterval = BackendConfig.requestTimeout
             
             let requestBody: [String: Any] = [
                 "amount": amount,
@@ -55,9 +58,13 @@ class StripePaymentService: NSObject, ObservableObject {
             
             let (data, response) = try await URLSession.shared.data(for: request)
             
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200 else {
-                throw NSError(domain: "StripePaymentService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Erreur serveur"])
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw BackendConfig.NetworkError.serverError("Réponse HTTP invalide")
+            }
+            
+            if httpResponse.statusCode != 200 {
+                let errorMessage = String(data: data, encoding: .utf8) ?? "Erreur serveur"
+                throw BackendConfig.NetworkError.serverError("Code \(httpResponse.statusCode): \(errorMessage)")
             }
             
             if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -66,13 +73,14 @@ class StripePaymentService: NSObject, ObservableObject {
                 paymentStatus = .idle
                 return (true, clientSecret)
             } else {
-                throw NSError(domain: "StripePaymentService", code: 2, userInfo: [NSLocalizedDescriptionKey: "Réponse invalide"])
+                throw BackendConfig.NetworkError.decodingError
             }
             
         } catch {
             isLoading = false
-            paymentStatus = .failed(error.localizedDescription)
-            errorMessage = "Erreur lors de la création du paiement: \(error.localizedDescription)"
+            let errorMessage = error.localizedDescription
+            paymentStatus = .failed(errorMessage)
+            self.errorMessage = "Erreur lors de la création du paiement: \(errorMessage)"
             return (false, nil)
         }
     }
@@ -83,18 +91,27 @@ class StripePaymentService: NSObject, ObservableObject {
         errorMessage = nil
         
         do {
+            print("🔵 Stripe: Début du traitement du paiement")
+            print("🔵 Stripe: Client Secret: \(clientSecret.prefix(20))...")
+            print("🔵 Stripe: Payment Method ID: \(paymentMethodId)")
+            
             // Configurer le PaymentIntent avec Stripe
             let paymentIntentParams = STPPaymentIntentParams(clientSecret: clientSecret)
             paymentIntentParams.paymentMethodId = paymentMethodId
             
             let result: Bool = try await withCheckedThrowingContinuation { continuation in
                 STPPaymentHandler.shared().confirmPayment(paymentIntentParams, with: self) { status, paymentIntent, error in
+                    print("🔵 Stripe: Statut reçu: \(status.rawValue)")
+                    
                     if let error = error {
+                        print("🔴 Stripe: Erreur lors du paiement: \(error.localizedDescription)")
                         continuation.resume(throwing: error)
                     } else if status == .succeeded {
+                        print("🟢 Stripe: Paiement réussi")
                         continuation.resume(returning: true)
                     } else {
-                        continuation.resume(throwing: NSError(domain: "StripePaymentService", code: 3, userInfo: [NSLocalizedDescriptionKey: "Paiement échoué"]))
+                        print("🔴 Stripe: Paiement échoué avec statut: \(status.rawValue)")
+                        continuation.resume(throwing: NSError(domain: "StripePaymentService", code: 3, userInfo: [NSLocalizedDescriptionKey: "Paiement échoué - Statut: \(status.rawValue)"]))
                     }
                 }
             }
@@ -105,8 +122,10 @@ class StripePaymentService: NSObject, ObservableObject {
             
         } catch {
             isLoading = false
-            paymentStatus = .failed(error.localizedDescription)
-            errorMessage = "Erreur lors du paiement: \(error.localizedDescription)"
+            let errorMessage = error.localizedDescription
+            print("🔴 Stripe: Erreur finale: \(errorMessage)")
+            paymentStatus = .failed(errorMessage)
+            self.errorMessage = "Erreur lors du paiement: \(errorMessage)"
             return false
         }
     }

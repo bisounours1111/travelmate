@@ -25,6 +25,7 @@ class ReservationService: ObservableObject {
     @Published var errorMessage: String?
     
     private let supabase = SupabaseConfig.client
+    private let baseURL = BackendConfig.baseURL
     
     func fetchReservations(for userId: String) async {
         isLoading = true
@@ -83,6 +84,7 @@ class ReservationService: ObservableObject {
             let response = try await supabase
                 .from("reservations")
                 .insert(reservationData)
+                .select()
                 .execute()
             
             // Extraire l'ID de la réservation créée
@@ -111,34 +113,47 @@ class ReservationService: ObservableObject {
         }
     }
     
-    func confirmReservation(reservationId: String, paymentIntentId: String) async -> Bool {
+    func confirmReservation(reservationId: String, paymentIntentId: String, userId: String) async -> Bool {
+        print("🔵 Début confirmation réservation: \(reservationId)")
+        print("🔵 Payment Intent ID: \(paymentIntentId)")
+        print("🔵 User ID: \(userId)")
+        
         do {
             let updateData = ReservationUpdateData(
                 status: "confirmed",
                 stripe_payment_intent_id: paymentIntentId
             )
             
+            print("🔵 Données de mise à jour: \(updateData)")
+            
             let response = try await supabase
                 .from("reservations")
                 .update(updateData)
                 .eq("id", value: reservationId)
+                .select() // Ajouter select() pour voir la réponse
                 .execute()
             
-            // Recharger les réservations
-            if let userId = getCurrentUserId() {
-                await fetchReservations(for: userId)
-            }
+            print("🟢 Réponse Supabase reçue")
             
+            // Afficher les données de la réponse pour déboguer
+            let responseData = response.data
+            print("🔵 Données de réponse: \(String(data: responseData, encoding: .utf8) ?? "Impossible de décoder")")
+            
+            // Recharger les réservations pour mettre à jour l'interface
+            await fetchReservations(for: userId)
+            
+            print("🟢 Réservation confirmée: \(reservationId)")
             return true
             
         } catch {
             errorMessage = "Erreur lors de la confirmation de la réservation: \(error.localizedDescription)"
-            print("Erreur Supabase: \(error)")
+            print("🔴 Erreur Supabase: \(error)")
+            print("🔴 Détails de l'erreur: \(error)")
             return false
         }
     }
     
-    func cancelReservation(reservationId: String) async -> Bool {
+    func cancelReservation(reservationId: String, userId: String) async -> Bool {
         do {
             let updateData = ReservationUpdateData(
                 status: "cancelled",
@@ -152,10 +167,9 @@ class ReservationService: ObservableObject {
                 .execute()
             
             // Recharger les réservations
-            if let userId = getCurrentUserId() {
-                await fetchReservations(for: userId)
-            }
+            await fetchReservations(for: userId)
             
+            print("🟡 Réservation annulée: \(reservationId)")
             return true
             
         } catch {
@@ -211,14 +225,27 @@ class ReservationService: ObservableObject {
     
     private func extractReservationId(from response: PostgrestResponse<()>) -> String? {
         // Extraire l'ID de la réservation créée depuis la réponse
-        // Cette logique dépend de la structure de réponse de Supabase
-        // Pour l'instant, on retourne nil
+        do {
+            let data = response.data
+            if let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+               let firstReservation = jsonArray.first,
+               let id = firstReservation["id"] as? String {
+                print("🟢 ID de réservation extrait: \(id)")
+                return id
+            } else {
+                print("🔴 Impossible d'extraire l'ID de réservation")
+                print("🔴 Données reçues: \(String(data: data, encoding: .utf8) ?? "Impossible de décoder")")
+            }
+        } catch {
+            print("🔴 Erreur extraction ID réservation: \(error)")
+        }
         return nil
     }
     
     private func getCurrentUserId() -> String? {
-        // Récupérer l'ID de l'utilisateur connecté
-        // Cette logique dépend de votre système d'authentification
+        // Récupérer l'ID de l'utilisateur connecté depuis l'AuthService
+        // Cette méthode sera appelée depuis les vues qui ont accès à l'AuthService
+        // Pour l'instant, on retourne nil et on gère cela dans les vues
         return nil
     }
     

@@ -1,15 +1,19 @@
 import SwiftUI
 import Stripe
+import UserNotifications
 
 struct StripePaymentView: View {
     let reservation: Reservation
     let destination: Destination
     let onSuccess: () -> Void
     let onFailure: (String) -> Void
+    let onReservationConfirmed: () -> Void
     
     @StateObject private var stripePaymentService = StripePaymentService()
     @StateObject private var reservationService = ReservationService()
     @Environment(\.dismiss) var dismiss
+    @Environment(\.presentationMode) var presentationMode
+    @EnvironmentObject var authService: AuthService
     
     @State private var cardNumber = ""
     @State private var expiryDate = ""
@@ -17,6 +21,7 @@ struct StripePaymentView: View {
     @State private var cardholderName = ""
     @State private var showingPaymentSheet = false
     @State private var clientSecret: String?
+    @State private var showingSuccessAlert = false
     
     var body: some View {
         NavigationStack {
@@ -165,9 +170,19 @@ struct StripePaymentView: View {
             }
             .onAppear {
                 createPaymentIntent()
+                requestNotificationPermission()
             }
             .onChange(of: stripePaymentService.paymentStatus) { _, status in
                 handlePaymentStatusChange(status)
+            }
+            .alert("Paiement Réussi !", isPresented: $showingSuccessAlert) {
+                Button("OK") {
+                    // Fermer toutes les vues et revenir à l'accueil
+                    presentationMode.wrappedValue.dismiss()
+                    onSuccess()
+                }
+            } message: {
+                Text("Votre réservation a été confirmée et vous recevrez une notification de confirmation.")
             }
         }
     }
@@ -177,6 +192,34 @@ struct StripePaymentView: View {
         cardNumber.count >= 13 &&
         expiryDate.count == 5 &&
         cvv.count >= 3
+    }
+    
+    private func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+            if granted {
+                print("🔔 Notifications autorisées")
+            } else {
+                print("🔕 Notifications refusées")
+            }
+        }
+    }
+    
+    private func sendSuccessNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = "🎉 Réservation Confirmée !"
+        content.body = "Votre réservation pour \(destination.title) a été confirmée. Bon voyage !"
+        content.sound = .default
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("🔴 Erreur notification: \(error)")
+            } else {
+                print("🟢 Notification envoyée")
+            }
+        }
     }
     
     private func createPaymentIntent() {
@@ -200,6 +243,16 @@ struct StripePaymentView: View {
             return
         }
         
+        guard let currentUser = authService.currentUser else {
+            onFailure("Utilisateur non connecté")
+            return
+        }
+        
+        print("🔵 Stripe: Début du processus de paiement")
+        print("🔵 Stripe: Numéro de carte: \(cardNumber.prefix(4))...")
+        print("🔵 Stripe: Date d'expiration: \(expiryDate)")
+        print("🔵 Stripe: CVV: \(cvv.prefix(1))**")
+        
         // Créer un PaymentMethod avec les informations de carte
         let cardParams = STPPaymentMethodCardParams()
         cardParams.number = cardNumber
@@ -217,17 +270,23 @@ struct StripePaymentView: View {
         )
         
         do {
+            print("🔵 Stripe: Création du PaymentMethod...")
             let paymentMethod: STPPaymentMethod = try await withCheckedThrowingContinuation { continuation in
                 STPAPIClient.shared.createPaymentMethod(with: paymentMethodParams) { paymentMethod, error in
                     if let error = error {
+                        print("🔴 Stripe: Erreur création PaymentMethod: \(error.localizedDescription)")
                         continuation.resume(throwing: error)
                     } else if let paymentMethod = paymentMethod {
+                        print("🟢 Stripe: PaymentMethod créé avec succès: \(paymentMethod.stripeId)")
                         continuation.resume(returning: paymentMethod)
                     } else {
+                        print("🔴 Stripe: PaymentMethod nil")
                         continuation.resume(throwing: NSError(domain: "StripePaymentView", code: 1, userInfo: [NSLocalizedDescriptionKey: "Erreur de création du PaymentMethod"]))
                     }
                 }
             }
+            
+            print("🔵 Stripe: Traitement du paiement avec PaymentMethod: \(paymentMethod.stripeId)")
             
             // Traiter le paiement
             let success = await stripePaymentService.processPayment(
@@ -236,22 +295,38 @@ struct StripePaymentView: View {
             )
             
             if success {
-                // Confirmer la réservation
+                print("🟢 Stripe: Paiement traité avec succès")
+                print("🔵 Vérification avant confirmation:")
+                print("🔵 - ID Réservation: \(reservation.id)")
+                print("🔵 - ID Utilisateur: \(currentUser.id)")
+                print("🔵 - Payment Intent ID: \(extractPaymentIntentId(from: clientSecret))")
+                
+                // Confirmer la réservation directement avec Supabase
                 let confirmed = await reservationService.confirmReservation(
                     reservationId: reservation.id,
-                    paymentIntentId: extractPaymentIntentId(from: clientSecret)
+                    paymentIntentId: extractPaymentIntentId(from: clientSecret),
+                    userId: currentUser.id
                 )
                 
                 if confirmed {
-                    onSuccess()
+                    print("🟢 Réservation confirmée avec succès")
+                    // Envoyer la notification
+                    sendSuccessNotification()
+                    // Déclencher le callback de confirmation
+                    onReservationConfirmed()
+                    // Afficher l'alerte de succès
+                    showingSuccessAlert = true
                 } else {
+                    print("🔴 Échec de la confirmation de réservation")
                     onFailure("Erreur lors de la confirmation de la réservation")
                 }
             } else {
+                print("🔴 Échec du paiement Stripe")
                 onFailure("Paiement échoué")
             }
             
         } catch {
+            print("🔴 Stripe: Erreur dans processPayment: \(error.localizedDescription)")
             onFailure("Erreur lors du paiement: \(error.localizedDescription)")
         }
     }
@@ -259,7 +334,8 @@ struct StripePaymentView: View {
     private func handlePaymentStatusChange(_ status: StripePaymentService.PaymentStatus) {
         switch status {
         case .success:
-            onSuccess()
+            // Le succès est géré dans processPayment
+            break
         case .failed(let error):
             onFailure(error)
         default:

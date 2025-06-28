@@ -69,7 +69,10 @@ struct DestinationsView: View {
                     ScrollView {
                         LazyVStack(spacing: 15) {
                             ForEach(destinationService.destinations) { destination in
-                                DestinationListItem(destination: destination)
+                                NavigationLink(destination: DestinationDetailView(destination: destination)) {
+                                    DestinationListItem(destination: destination)
+                                }
+                                .buttonStyle(PlainButtonStyle())
                             }
                         }
                         .padding()
@@ -94,18 +97,21 @@ struct DestinationMapMarker: View {
     let destination: Destination
     
     var body: some View {
-        VStack {
-            Image(systemName: "mappin.circle.fill")
-                .font(.title)
-                .foregroundColor(.red)
-            
-            Text(destination.title)
-                .font(.caption)
-                .padding(5)
-                .background(Color.white)
-                .cornerRadius(5)
-                .shadow(radius: 2)
+        NavigationLink(destination: DestinationDetailView(destination: destination)) {
+            VStack {
+                Image(systemName: "mappin.circle.fill")
+                    .font(.title)
+                    .foregroundColor(.red)
+                
+                Text(destination.title)
+                    .font(.caption)
+                    .padding(5)
+                    .background(Color.white)
+                    .cornerRadius(5)
+                    .shadow(radius: 2)
+            }
         }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 

@@ -102,7 +102,10 @@ struct SearchView: View {
                 ScrollView {
                     LazyVStack(spacing: 15) {
                         ForEach(destinationService.destinations) { destination in
-                            SearchResultCard(destination: destination)
+                            NavigationLink(destination: DestinationDetailView(destination: destination)) {
+                                SearchResultCard(destination: destination)
+                            }
+                            .buttonStyle(PlainButtonStyle())
                         }
                     }
                     .padding()

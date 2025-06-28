@@ -7,8 +7,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
-        // Configuration Stripe
+        // Configuration Stripe - Assurez-vous que cette clé correspond à votre compte Stripe
         StripeAPI.defaultPublishableKey = "pk_test_51ReySuFMFs1dsPI2CShuVgACTBDdGXlQfZK9QjzNfFFmXZrDe7qslaK38Su9qNrWXETGKc0zzk1qdJpDRSQd6eyh0080sH3Q6Z"
+        
+        // Configuration supplémentaire pour le débogage
+        #if DEBUG
+        StripeAPI.advancedFraudSignalsEnabled = false
+        #endif
         
         return true
     }

@@ -162,7 +162,10 @@ struct ReservationsView: View {
 struct ReservationCard: View {
     let reservation: Reservation
     @StateObject private var destinationService = DestinationService()
+    @StateObject private var reservationService = ReservationService()
+    @EnvironmentObject var authService: AuthService
     @State private var destination: Destination?
+    @State private var showingCancelAlert = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -238,7 +241,9 @@ struct ReservationCard: View {
                     Spacer()
                     
                     if reservation.status == .pending {
-                        Button(action: {}) {
+                        Button(action: {
+                            showingCancelAlert = true
+                        }) {
                             Text("Annuler")
                                 .fontWeight(.medium)
                                 .foregroundColor(.red)
@@ -259,6 +264,21 @@ struct ReservationCard: View {
             Task {
                 destination = await destinationService.fetchDestination(by: reservation.destinationId)
             }
+        }
+        .alert("Annuler la réservation", isPresented: $showingCancelAlert) {
+            Button("Annuler", role: .cancel) { }
+            Button("Confirmer", role: .destructive) {
+                Task {
+                    if let currentUser = authService.currentUser {
+                        await reservationService.cancelReservation(
+                            reservationId: reservation.id,
+                            userId: currentUser.id
+                        )
+                    }
+                }
+            }
+        } message: {
+            Text("Êtes-vous sûr de vouloir annuler cette réservation ? Cette action est irréversible.")
         }
     }
     
@@ -329,12 +349,21 @@ struct FavoritesView: View {
             ScrollView {
                 LazyVStack(spacing: 15) {
                     ForEach(favoriteService.favorites) { favorite in
-                        FavoriteCard(favorite: favorite, destinationService: destinationService)
+                        let destination = getDestination(for: favorite.destinationId)
+                        NavigationLink(destination: DestinationDetailView(destination: destination)) {
+                            FavoriteCard(favorite: favorite, destinationService: destinationService)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
                 }
                 .padding()
             }
         }
+    }
+    
+    private func getDestination(for destinationId: String) -> Destination {
+        return destinationService.destinations.first { $0.id == destinationId } ?? 
+               Destination(id: "", title: "", type: "", location: "", notes: nil, lat: 0, long: 0, categoryId: nil, imagePath: nil)
     }
 }
 

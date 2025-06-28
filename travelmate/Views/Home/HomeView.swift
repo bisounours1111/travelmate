@@ -109,7 +109,10 @@ struct PopularDestinationsView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 15) {
                         ForEach(Array(destinations.prefix(5))) { destination in
-                            DestinationCardView(destination: destination)
+                            NavigationLink(destination: DestinationDetailView(destination: destination)) {
+                                DestinationCardView(destination: destination)
+                            }
+                            .buttonStyle(PlainButtonStyle())
                         }
                     }
                 }
