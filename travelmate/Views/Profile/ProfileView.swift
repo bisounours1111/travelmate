@@ -205,8 +205,8 @@ struct ReservationCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             // Image de la destination
-            if let destination = destination, !destination.imageURL.isEmpty {
-                AsyncImage(url: URL(string: destination.imageURL)) { image in
+            if let destination = destination, !destination.imageURLs.isEmpty {
+                AsyncImage(url: URL(string: destination.imageURLs[0])) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -399,7 +399,7 @@ struct FavoritesView: View {
     
     private func getDestination(for destinationId: String) -> Destination {
         return destinationService.destinations.first { $0.id == destinationId } ?? 
-        Destination(id: "", title: "", type: "", location: "", notes: nil, lat: 0, long: 0, categoryId: nil, imagePath: nil, price: 0)
+        Destination(id: "", title: "", type: "", location: "", notes: nil, lat: 0, long: 0, categoryId: nil, imagePaths: nil, price: 0)
     }
 }
 
@@ -413,8 +413,8 @@ struct FavoriteCard: View {
     var body: some View {
         HStack {
             // Image de la destination
-            if let destination = destination, !destination.imageURL.isEmpty {
-                AsyncImage(url: URL(string: destination.imageURL)) { image in
+            if let destination = destination, !destination.imageURLs.isEmpty {
+                AsyncImage(url: URL(string: destination.imageURLs[0])) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

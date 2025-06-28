@@ -65,7 +65,7 @@ class DestinationService: ObservableObject {
         
         let notes = dict["notes"] as? String
         let categoryId = dict["category_id"] as? String
-        let imagePath = dict["image_path"] as? String
+        let imagePaths = dict["image_path"] as? [String]
         let price = dict["price"] as? Double
         
         return Destination(
@@ -77,7 +77,7 @@ class DestinationService: ObservableObject {
             lat: lat,
             long: lng,
             categoryId: categoryId,
-            imagePath: imagePath,
+            imagePaths: imagePaths,
             price: price
         )
     }

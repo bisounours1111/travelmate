@@ -141,8 +141,8 @@ struct DestinationCardView: View {
     var body: some View {
         VStack {
             ZStack(alignment: .topTrailing) {
-                if !destination.imageURL.isEmpty {
-                    AsyncImage(url: URL(string: destination.imageURL)) { image in
+                if !destination.imageURLs.isEmpty {
+                    AsyncImage(url: URL(string: destination.imageURLs[0])) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)

@@ -129,8 +129,8 @@ struct DestinationListItem: View {
         VStack(alignment: .leading) {
             ZStack(alignment: .topTrailing) {
                 // Image de la destination
-                if !destination.imageURL.isEmpty {
-                    AsyncImage(url: URL(string: destination.imageURL)) { image in
+                if !destination.imageURLs.isEmpty {
+                    AsyncImage(url: URL(string: destination.imageURLs[0])) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)

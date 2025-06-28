@@ -9,18 +9,32 @@ struct Destination: Identifiable, Codable {
     let lat: Double
     let long: Double
     let categoryId: String?
-    let imagePath: String?
+    let imagePaths: [String]?
     let price: Double?
     
     // Propriétés calculées pour la compatibilité avec l'interface existante
     var name: String { title }
     var description: String { notes ?? "" }
+    
+    // Propriété pour la compatibilité avec l'ancien système (première image)
     var imageURL: String { 
-        if let imagePath = imagePath, !imagePath.isEmpty {
-            return "https://etzdkvwucgaznmolqdyj.supabase.co/storage/v1/object/public/products/\(imagePath)"
+        if let imagePaths = imagePaths, !imagePaths.isEmpty, !imagePaths[0].isEmpty {
+            return "https://etzdkvwucgaznmolqdyj.supabase.co/storage/v1/object/public/products/\(imagePaths[0])"
         }
         return ""
     }
+    
+    // Propriété pour obtenir toutes les URLs d'images
+    var imageURLs: [String] {
+        guard let imagePaths = imagePaths else { return [] }
+        return imagePaths.compactMap { path in
+            if !path.isEmpty {
+                return "https://etzdkvwucgaznmolqdyj.supabase.co/storage/v1/object/public/products/\(path)"
+            }
+            return nil
+        }
+    }
+    
     var climate: String { "Tempéré" } // Valeur par défaut
     var culture: String { "Locale" } // Valeur par défaut
     var activities: [Activity] { [] } // À adapter selon vos besoins
@@ -73,7 +87,7 @@ struct Destination: Identifiable, Codable {
         case lat
         case long
         case categoryId = "category_id"
-        case imagePath = "image_path"
+        case imagePaths = "image_path"
         case price
     }
     

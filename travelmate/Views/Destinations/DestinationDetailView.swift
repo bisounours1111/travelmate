@@ -15,10 +15,7 @@ struct DestinationDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Image principale
-                ImageHeaderView(destination: destination, favoriteService: favoriteService, authService: authService, favoriteCount: favoriteCount)
-                
-                // Informations principales
+                // Informations principales en haut
                 VStack(alignment: .leading, spacing: 15) {
                     HStack {
                         Text(destination.title)
@@ -76,6 +73,20 @@ struct DestinationDetailView: View {
                         .foregroundColor(.gray)
                 }
                 .padding(.horizontal)
+                .padding(.top, 60) // Marge en haut pour éviter la barre de navigation
+                
+                // Carrousel d'images en dessous
+                if !destination.imageURLs.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Photos")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .padding(.horizontal)
+                        
+                        ImageCarousel(imageURLs: destination.imageURLs)
+                            .frame(height: 250)
+                    }
+                }
                 
                 // Sélecteur d'onglets
                 Picker("Section", selection: $selectedTab) {
@@ -106,6 +117,26 @@ struct DestinationDetailView: View {
             }
         }
         .ignoresSafeArea(edges: .top)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: {
+                    // Action de retour automatique
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.title3)
+                        Text("Retour")
+                            .font(.body)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.black.opacity(0.6))
+                    .cornerRadius(20)
+                }
+            }
+        }
         .overlay(
             VStack {
                 Spacer()
@@ -127,51 +158,6 @@ struct DestinationDetailView: View {
             Task {
                 favoriteCount = await favoriteService.getFavoriteCount(for: destination.id)
                 reviewStats = await reviewService.getReviewStats(for: destination.id)
-            }
-        }
-    }
-}
-
-struct ImageHeaderView: View {
-    let destination: Destination
-    let favoriteService: FavoriteService
-    let authService: AuthService
-    let favoriteCount: Int
-    
-    var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            if !destination.imageURL.isEmpty {
-                AsyncImage(url: URL(string: destination.imageURL)) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(height: 300)
-                        .clipped()
-                } placeholder: {
-                    RoundedRectangle(cornerRadius: 0)
-                        .fill(Color.gray.opacity(0.2))
-                        .frame(height: 300)
-                        .overlay(
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle())
-                                .scaleEffect(1.5)
-                        )
-                }
-            } else {
-                RoundedRectangle(cornerRadius: 0)
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(height: 300)
-            }
-            
-            // Overlay avec le titre
-            VStack(alignment: .leading) {
-                Spacer()
-                Text(destination.title)
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                    .shadow(radius: 2)
-                    .padding()
             }
         }
     }
