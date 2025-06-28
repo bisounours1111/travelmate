@@ -24,26 +24,48 @@ class FavoriteService: ObservableObject {
             if let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
                 var decodedFavorites: [Favorite] = []
                 
+                print("🔍 Données brutes reçues de Supabase:")
+                for (index, favoriteDict) in jsonArray.enumerated() {
+                    print("  Favori \(index + 1): \(favoriteDict)")
+                }
+                
                 for favoriteDict in jsonArray {
                     if let favorite = try? decodeFavorite(from: favoriteDict) {
                         decodedFavorites.append(favorite)
+                        print("✅ Favori décodé: UserID=\(favorite.userId), DestinationID=\(favorite.destinationId)")
                     }
                 }
                 
                 self.favorites = decodedFavorites
+                print("🟢 Favoris chargés: \(decodedFavorites.count) favoris pour l'utilisateur \(userId)")
+                
+                // Afficher tous les favoris stockés
+                print("📋 Liste complète des favoris en mémoire:")
+                for (index, favorite) in self.favorites.enumerated() {
+                    print("  \(index + 1). UserID: \(favorite.userId), DestinationID: \(favorite.destinationId)")
+                }
+                
+                // Forcer la mise à jour de l'interface
+                DispatchQueue.main.async {
+                    self.objectWillChange.send()
+                }
             }
             
         } catch {
             errorMessage = "Erreur lors du chargement des favoris: \(error.localizedDescription)"
-            print("Erreur Supabase: \(error)")
+            print("🔴 Erreur Supabase: \(error)")
         }
         
         isLoading = false
     }
     
     func addToFavorites(userId: String, destinationId: String) async -> Bool {
+        // Normaliser les IDs pour la vérification
+        let normalizedUserId = userId.lowercased()
+        let normalizedDestinationId = destinationId.lowercased()
+        
         // Vérifier si le favori existe déjà
-        if isFavorite(userId: userId, destinationId: destinationId) {
+        if isFavorite(userId: normalizedUserId, destinationId: normalizedDestinationId) {
             print("🔵 Favori déjà existant pour destination: \(destinationId)")
             return true
         }
@@ -59,13 +81,21 @@ class FavoriteService: ObservableObject {
             
             print("🟢 Favori ajouté avec succès pour destination: \(destinationId)")
             
-            // Recharger les favoris
-            await fetchFavorites(for: userId)
+            // Ajouter le favori localement pour une mise à jour immédiate
+            let newFavorite = Favorite(
+                id: UUID().uuidString, // ID temporaire
+                userId: userId,
+                destinationId: destinationId,
+                createdAt: ISO8601DateFormatter().string(from: Date())
+            )
             
-            // Forcer la mise à jour de l'interface
             DispatchQueue.main.async {
+                self.favorites.append(newFavorite)
                 self.objectWillChange.send()
             }
+            
+            // Recharger les favoris depuis la base de données
+            await fetchFavorites(for: userId)
             
             return true
             
@@ -76,12 +106,6 @@ class FavoriteService: ObservableObject {
                 print("🟡 Favori déjà existant (erreur de contrainte): \(destinationId)")
                 // Recharger les favoris pour s'assurer que l'état est cohérent
                 await fetchFavorites(for: userId)
-                
-                // Forcer la mise à jour de l'interface
-                DispatchQueue.main.async {
-                    self.objectWillChange.send()
-                }
-                
                 return true
             }
             
@@ -102,13 +126,21 @@ class FavoriteService: ObservableObject {
             
             print("🟢 Favori supprimé avec succès pour destination: \(destinationId)")
             
-            // Recharger les favoris
-            await fetchFavorites(for: userId)
+            // Normaliser les IDs pour la suppression locale
+            let normalizedUserId = userId.lowercased()
+            let normalizedDestinationId = destinationId.lowercased()
             
-            // Forcer la mise à jour de l'interface
+            // Supprimer le favori localement pour une mise à jour immédiate
             DispatchQueue.main.async {
+                self.favorites.removeAll { favorite in
+                    favorite.userId.lowercased() == normalizedUserId && 
+                    favorite.destinationId.lowercased() == normalizedDestinationId
+                }
                 self.objectWillChange.send()
             }
+            
+            // Recharger les favoris depuis la base de données
+            await fetchFavorites(for: userId)
             
             return true
             
@@ -120,9 +152,24 @@ class FavoriteService: ObservableObject {
     }
     
     func isFavorite(userId: String, destinationId: String) -> Bool {
-        return favorites.contains { favorite in
-            favorite.userId == userId && favorite.destinationId == destinationId
+        print("🔍 Vérification favori détaillée:")
+        print("  - UserID recherché: \(userId)")
+        print("  - DestinationID recherché: \(destinationId)")
+        print("  - Nombre total de favoris en mémoire: \(favorites.count)")
+        
+        // Normaliser les IDs en minuscules pour la comparaison
+        let normalizedUserId = userId.lowercased()
+        let normalizedDestinationId = destinationId.lowercased()
+        
+        let isFav = favorites.contains { favorite in
+            let userMatch = favorite.userId.lowercased() == normalizedUserId
+            let destinationMatch = favorite.destinationId.lowercased() == normalizedDestinationId
+            print("  - Comparaison: UserID=\(favorite.userId) (\(userMatch)), DestinationID=\(favorite.destinationId) (\(destinationMatch))")
+            return userMatch && destinationMatch
         }
+        
+        print("🔍 Résultat final - Est favori: \(isFav)")
+        return isFav
     }
     
     func getFavoriteCount(for destinationId: String) async -> Int {
@@ -143,31 +190,26 @@ class FavoriteService: ObservableObject {
     
     func toggleFavorite(userId: String, destinationId: String) async -> Bool {
         // Vérifier d'abord l'état actuel
+        print("🔵 Début toggleFavorite - User: \(userId), Destination: \(destinationId)")
         let isCurrentlyFavorite = isFavorite(userId: userId, destinationId: destinationId)
+        print("🔍 État actuel - User: \(userId), Destination: \(destinationId), Est favori: \(isCurrentlyFavorite)")
         
         if isCurrentlyFavorite {
             // Si c'est déjà un favori, on le supprime
             print("🔵 Suppression du favori pour destination: \(destinationId)")
             let success = await removeFromFavorites(userId: userId, destinationId: destinationId)
-            if success {
-                // Forcer la mise à jour de l'interface
-                DispatchQueue.main.async {
-                    self.objectWillChange.send()
-                }
-            }
             return success
         } else {
             // Sinon on l'ajoute
             print("🔵 Ajout du favori pour destination: \(destinationId)")
             let success = await addToFavorites(userId: userId, destinationId: destinationId)
-            if success {
-                // Forcer la mise à jour de l'interface
-                DispatchQueue.main.async {
-                    self.objectWillChange.send()
-                }
-            }
             return success
         }
+    }
+    
+    func forceRefreshFavorites(for userId: String) async {
+        print("🔄 Force refresh des favoris pour l'utilisateur: \(userId)")
+        await fetchFavorites(for: userId)
     }
     
     private func decodeFavorite(from dict: [String: Any]) throws -> Favorite {

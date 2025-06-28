@@ -407,7 +407,7 @@ struct FavoriteCard: View {
     let favorite: Favorite
     let destinationService: DestinationService
     @State private var destination: Destination?
-    @StateObject private var favoriteService = FavoriteService()
+    @EnvironmentObject var favoriteService: FavoriteService
     @EnvironmentObject var authService: AuthService
     
     var body: some View {

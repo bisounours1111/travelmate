@@ -40,7 +40,7 @@ struct HomeView: View {
             Task {
                 await destinationService.fetchDestinations()
                 if let currentUser = authService.currentUser {
-                    await favoriteService.fetchFavorites(for: currentUser.id)
+                    await favoriteService.forceRefreshFavorites(for: currentUser.id)
                 }
             }
         }
