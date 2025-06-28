@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ProfileView: View {
     @State private var selectedTab = 0
-    @StateObject private var favoriteService = FavoriteService()
+    @EnvironmentObject var favoriteService: FavoriteService
     @StateObject private var reservationService = ReservationService()
     @EnvironmentObject var authService: AuthService
     
@@ -385,7 +385,8 @@ struct FavoritesView: View {
                 LazyVStack(spacing: 15) {
                     ForEach(favoriteService.favorites) { favorite in
                         let destination = getDestination(for: favorite.destinationId)
-                        NavigationLink(destination: DestinationDetailView(destination: destination)) {
+                        NavigationLink(destination: DestinationDetailView(destination: destination)
+                            .environmentObject(favoriteService)) {
                             FavoriteCard(favorite: favorite, destinationService: destinationService)
                         }
                         .buttonStyle(PlainButtonStyle())

@@ -7,6 +7,7 @@ struct SearchView: View {
     @State private var selectedDuration = 7
     @State private var selectedCategory = "Tous"
     @StateObject private var destinationService = DestinationService()
+    @EnvironmentObject var favoriteService: FavoriteService
     
     let categories = ["Tous", "Culture", "Nature", "Plage", "Montagne", "Ville"]
     
@@ -102,7 +103,8 @@ struct SearchView: View {
                 ScrollView {
                     LazyVStack(spacing: 15) {
                         ForEach(destinationService.destinations) { destination in
-                            NavigationLink(destination: DestinationDetailView(destination: destination)) {
+                            NavigationLink(destination: DestinationDetailView(destination: destination)
+                                .environmentObject(favoriteService)) {
                                 SearchResultCard(destination: destination)
                             }
                             .buttonStyle(PlainButtonStyle())
@@ -143,35 +145,71 @@ struct SearchBarView: View {
 
 struct SearchResultCard: View {
     let destination: Destination
+    @EnvironmentObject var favoriteService: FavoriteService
+    @EnvironmentObject var authService: AuthService
+    @State private var favoriteCount = 0
     
     var body: some View {
         VStack(alignment: .leading) {
-            // Image de la destination
-            if !destination.imageURL.isEmpty {
-                AsyncImage(url: URL(string: destination.imageURL)) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(height: 200)
-                        .clipped()
-                } placeholder: {
+            ZStack(alignment: .topTrailing) {
+                // Image de la destination
+                if !destination.imageURL.isEmpty {
+                    AsyncImage(url: URL(string: destination.imageURL)) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(height: 200)
+                            .clipped()
+                    } placeholder: {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(height: 200)
+                            .overlay(
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle())
+                            )
+                    }
+                    .cornerRadius(10)
+                } else {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color.gray.opacity(0.2))
                         .frame(height: 200)
                         .overlay(
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle())
+                            Text(destination.title)
+                                .foregroundColor(.gray)
                         )
                 }
-                .cornerRadius(10)
-            } else {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(height: 200)
-                    .overlay(
-                        Text(destination.title)
-                            .foregroundColor(.gray)
-                    )
+                
+                // Bouton favori avec compteur
+                if let currentUser = authService.currentUser {
+                    VStack(spacing: 4) {
+                        Button(action: {
+                            Task {
+                                await favoriteService.toggleFavorite(userId: currentUser.id, destinationId: destination.id)
+                                // Mettre à jour le compteur après le toggle
+                                favoriteCount = await favoriteService.getFavoriteCount(for: destination.id)
+                            }
+                        }) {
+                            Image(systemName: favoriteService.isFavorite(userId: currentUser.id, destinationId: destination.id) ? "heart.fill" : "heart")
+                                .foregroundColor(favoriteService.isFavorite(userId: currentUser.id, destinationId: destination.id) ? .red : .white)
+                                .font(.title2)
+                                .padding(8)
+                                .background(Color.black.opacity(0.3))
+                                .clipShape(Circle())
+                        }
+                        
+                        // Compteur de favoris
+                        Text("\(favoriteCount)")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.black.opacity(0.6))
+                            .cornerRadius(8)
+                    }
+                    .padding(8)
+                }
             }
             
             VStack(alignment: .leading, spacing: 8) {
@@ -211,6 +249,13 @@ struct SearchResultCard: View {
         .background(Color.white)
         .cornerRadius(15)
         .shadow(radius: 5)
+        .onAppear {
+            if let currentUser = authService.currentUser {
+                Task {
+                    favoriteCount = await favoriteService.getFavoriteCount(for: destination.id)
+                }
+            }
+        }
     }
 }
 

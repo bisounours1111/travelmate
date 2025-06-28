@@ -5,15 +5,16 @@ struct DestinationDetailView: View {
     let destination: Destination
     @State private var selectedTab = 0
     @State private var showingBookingSheet = false
-    @StateObject private var favoriteService = FavoriteService()
+    @EnvironmentObject var favoriteService: FavoriteService
     @StateObject private var reservationService = ReservationService()
     @EnvironmentObject var authService: AuthService
+    @State private var favoriteCount = 0
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 // Image principale
-                ImageHeaderView(destination: destination, favoriteService: favoriteService, authService: authService)
+                ImageHeaderView(destination: destination, favoriteService: favoriteService, authService: authService, favoriteCount: favoriteCount)
                 
                 // Informations principales
                 VStack(alignment: .leading, spacing: 15) {
@@ -24,24 +25,26 @@ struct DestinationDetailView: View {
                         
                         Spacer()
                         
-                        // Bouton favori
+                        // Bouton favori avec compteur
                         if let currentUser = authService.currentUser {
-                            Button(action: {
-                                Task {
-                                    if favoriteService.isFavorite(userId: currentUser.id, destinationId: destination.id) {
-                                        await favoriteService.removeFromFavorites(userId: currentUser.id, destinationId: destination.id)
-                                    } else {
-                                        await favoriteService.addToFavorites(userId: currentUser.id, destinationId: destination.id)
+                            VStack(spacing: 4) {
+                                Button(action: {
+                                    Task {
+                                        await favoriteService.toggleFavorite(userId: currentUser.id, destinationId: destination.id)
+                                        // Mettre à jour le compteur après le toggle
+                                        favoriteCount = await favoriteService.getFavoriteCount(for: destination.id)
                                     }
+                                }) {
+                                    Image(systemName: favoriteService.isFavorite(userId: currentUser.id, destinationId: destination.id) ? "heart.fill" : "heart")
+                                        .foregroundColor(favoriteService.isFavorite(userId: currentUser.id, destinationId: destination.id) ? .red : .gray)
+                                        .font(.title2)
                                 }
-                            }) {
-                                Image(systemName: favoriteService.isFavorite(userId: currentUser.id, destinationId: destination.id) ? "heart.fill" : "heart")
-                                    .foregroundColor(favoriteService.isFavorite(userId: currentUser.id, destinationId: destination.id) ? .red : .gray)
-                                    .font(.title2)
-                            }
-                            .onTapGesture {
-                                // Forcer la mise à jour de l'interface
-                                favoriteService.objectWillChange.send()
+                                
+                                // Compteur de favoris
+                                Text("\(favoriteCount)")
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.gray)
                             }
                         }
                     }
@@ -112,7 +115,7 @@ struct DestinationDetailView: View {
         .onAppear {
             if let currentUser = authService.currentUser {
                 Task {
-                    await favoriteService.fetchFavorites(for: currentUser.id)
+                    favoriteCount = await favoriteService.getFavoriteCount(for: destination.id)
                 }
             }
         }
@@ -123,6 +126,7 @@ struct ImageHeaderView: View {
     let destination: Destination
     let favoriteService: FavoriteService
     let authService: AuthService
+    let favoriteCount: Int
     
     var body: some View {
         ZStack(alignment: .bottomLeading) {

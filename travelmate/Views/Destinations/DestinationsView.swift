@@ -10,6 +10,7 @@ struct DestinationsView: View {
 
     @State private var authService: AuthService = AuthService()
     @StateObject private var destinationService = DestinationService()
+    @EnvironmentObject var favoriteService: FavoriteService
 
     var body: some View {
         VStack {
@@ -69,7 +70,8 @@ struct DestinationsView: View {
                     ScrollView {
                         LazyVStack(spacing: 15) {
                             ForEach(destinationService.destinations) { destination in
-                                NavigationLink(destination: DestinationDetailView(destination: destination)) {
+                                NavigationLink(destination: DestinationDetailView(destination: destination)
+                                    .environmentObject(favoriteService)) {
                                     DestinationListItem(destination: destination)
                                 }
                                 .buttonStyle(PlainButtonStyle())
@@ -95,9 +97,11 @@ struct DestinationsView: View {
 
 struct DestinationMapMarker: View {
     let destination: Destination
+    @EnvironmentObject var favoriteService: FavoriteService
     
     var body: some View {
-        NavigationLink(destination: DestinationDetailView(destination: destination)) {
+        NavigationLink(destination: DestinationDetailView(destination: destination)
+            .environmentObject(favoriteService)) {
             VStack {
                 Image(systemName: "mappin.circle.fill")
                     .font(.title)
@@ -117,8 +121,9 @@ struct DestinationMapMarker: View {
 
 struct DestinationListItem: View {
     let destination: Destination
-    @StateObject private var favoriteService = FavoriteService()
+    @EnvironmentObject var favoriteService: FavoriteService
     @EnvironmentObject var authService: AuthService
+    @State private var favoriteCount = 0
     
     var body: some View {
         VStack(alignment: .leading) {
@@ -151,23 +156,33 @@ struct DestinationListItem: View {
                         )
                 }
                 
-                // Bouton favori
+                // Bouton favori avec compteur
                 if let currentUser = authService.currentUser {
-                    Button(action: {
-                        Task {
-                            if favoriteService.isFavorite(userId: currentUser.id, destinationId: destination.id) {
-                                await favoriteService.removeFromFavorites(userId: currentUser.id, destinationId: destination.id)
-                            } else {
-                                await favoriteService.addToFavorites(userId: currentUser.id, destinationId: destination.id)
+                    VStack(spacing: 4) {
+                        Button(action: {
+                            Task {
+                                await favoriteService.toggleFavorite(userId: currentUser.id, destinationId: destination.id)
+                                // Mettre à jour le compteur après le toggle
+                                favoriteCount = await favoriteService.getFavoriteCount(for: destination.id)
                             }
+                        }) {
+                            Image(systemName: favoriteService.isFavorite(userId: currentUser.id, destinationId: destination.id) ? "heart.fill" : "heart")
+                                .foregroundColor(favoriteService.isFavorite(userId: currentUser.id, destinationId: destination.id) ? .red : .white)
+                                .font(.title2)
+                                .padding(8)
+                                .background(Color.black.opacity(0.3))
+                                .clipShape(Circle())
                         }
-                    }) {
-                        Image(systemName: favoriteService.isFavorite(userId: currentUser.id, destinationId: destination.id) ? "heart.fill" : "heart")
-                            .foregroundColor(favoriteService.isFavorite(userId: currentUser.id, destinationId: destination.id) ? .red : .white)
-                            .font(.title2)
-                            .padding(8)
-                            .background(Color.black.opacity(0.3))
-                            .clipShape(Circle())
+                        
+                        // Compteur de favoris
+                        Text("\(favoriteCount)")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.black.opacity(0.6))
+                            .cornerRadius(8)
                     }
                     .padding(8)
                 }
@@ -218,7 +233,7 @@ struct DestinationListItem: View {
         .onAppear {
             if let currentUser = authService.currentUser {
                 Task {
-                    await favoriteService.fetchFavorites(for: currentUser.id)
+                    favoriteCount = await favoriteService.getFavoriteCount(for: destination.id)
                 }
             }
         }
