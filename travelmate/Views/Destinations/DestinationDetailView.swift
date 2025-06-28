@@ -7,8 +7,10 @@ struct DestinationDetailView: View {
     @State private var showingBookingSheet = false
     @EnvironmentObject var favoriteService: FavoriteService
     @StateObject private var reservationService = ReservationService()
+    @StateObject private var reviewService = ReviewService()
     @EnvironmentObject var authService: AuthService
     @State private var favoriteCount = 0
+    @State private var reviewStats: ReviewStats?
     
     var body: some View {
         ScrollView {
@@ -59,11 +61,14 @@ struct DestinationDetailView: View {
                         
                         Spacer()
                         
-                        Image(systemName: "star.fill")
-                            .foregroundColor(.yellow)
-                        Text(String(format: "%.1f", destination.rating))
-                        Text("(\(Int.random(in: 50...200)) avis)")
-                            .foregroundColor(.gray)
+                        // Statistiques d'avis réelles
+                        HStack(spacing: 4) {
+                            Image(systemName: "star.fill")
+                                .foregroundColor(.yellow)
+                            Text(String(format: "%.1f", reviewStats?.averageRating ?? destination.rating))
+                            Text("(\(reviewStats?.reviewCount ?? 0) avis)")
+                                .foregroundColor(.gray)
+                        }
                     }
                     
                     Text(destination.description)
@@ -93,7 +98,7 @@ struct DestinationDetailView: View {
                     MapTab(destination: destination)
                         .tag(2)
                     
-                    ReviewsTab()
+                    ReviewsTab(destination: destination)
                         .tag(3)
                 }
                 .frame(height: 400)
@@ -113,10 +118,15 @@ struct DestinationDetailView: View {
             BookingView(destination: destination, reservationService: reservationService, authService: authService)
         }
         .onAppear {
-            if let currentUser = authService.currentUser {
-                Task {
-                    favoriteCount = await favoriteService.getFavoriteCount(for: destination.id)
-                }
+            loadData()
+        }
+    }
+    
+    private func loadData() {
+        if let currentUser = authService.currentUser {
+            Task {
+                favoriteCount = await favoriteService.getFavoriteCount(for: destination.id)
+                reviewStats = await reviewService.getReviewStats(for: destination.id)
             }
         }
     }
@@ -299,54 +309,10 @@ struct MapTab: View {
 }
 
 struct ReviewsTab: View {
+    let destination: Destination
+    
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 15) {
-                ForEach(0..<5) { _ in
-                    ReviewCard()
-                }
-            }
-            .padding()
-        }
-    }
-}
-
-struct ReviewCard: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Image(systemName: "person.circle.fill")
-                    .resizable()
-                    .frame(width: 40, height: 40)
-                    .foregroundColor(.gray)
-                
-                VStack(alignment: .leading) {
-                    Text("Jean Dupont")
-                        .font(.headline)
-                    
-                    HStack {
-                        ForEach(0..<5) { _ in
-                            Image(systemName: "star.fill")
-                                .foregroundColor(.yellow)
-                        }
-                    }
-                }
-                
-                Spacer()
-                
-                Text("Il y a 2 mois")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-            }
-            
-            Text("Excellent séjour ! Les activités étaient bien organisées et le personnel était très accueillant. Je recommande vivement cette destination.")
-                .font(.body)
-                .foregroundColor(.gray)
-        }
-        .padding()
-        .background(Color.white)
-        .cornerRadius(15)
-        .shadow(radius: 5)
+        ReviewsView(destination: destination)
     }
 }
 
