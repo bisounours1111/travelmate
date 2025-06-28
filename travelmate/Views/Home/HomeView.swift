@@ -157,9 +157,15 @@ struct DestinationCardView: View {
                 .font(.headline)
                 .lineLimit(1)
             
-            Text("À partir de \(Int.random(in: 500...2000))€")
-                .font(.subheadline)
-                .foregroundColor(.gray)
+            HStack {
+                Text("À partir de")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                Text("\(Int(destination.price ?? 799))€")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(.blue)
+            }
         }
     }
 }

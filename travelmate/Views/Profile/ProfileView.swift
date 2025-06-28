@@ -112,48 +112,83 @@ struct StatisticView: View {
 struct ReservationsView: View {
     let reservationService: ReservationService
     let authService: AuthService
+    @State private var selectedStatusFilter: ReservationStatusFilter = .all
+    
+    enum ReservationStatusFilter: String, CaseIterable {
+        case all = "Toutes"
+        case pending = "En attente"
+        case confirmed = "Confirmées"
+        case cancelled = "Annulées"
+        
+        var status: Reservation.ReservationStatus? {
+            switch self {
+            case .all: return nil
+            case .pending: return .pending
+            case .confirmed: return .confirmed
+            case .cancelled: return .cancelled
+            }
+        }
+    }
+    
+    var filteredReservations: [Reservation] {
+        if let status = selectedStatusFilter.status {
+            return reservationService.reservations.filter { $0.status == status }
+        }
+        return reservationService.reservations
+    }
     
     var body: some View {
-        if reservationService.isLoading {
-            Spacer()
-            ProgressView("Chargement des réservations...")
-            Spacer()
-        } else if let errorMessage = reservationService.errorMessage {
-            Spacer()
-            VStack {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.largeTitle)
-                    .foregroundColor(.orange)
-                Text("Erreur")
-                    .font(.headline)
-                Text(errorMessage)
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-                    .multilineTextAlignment(.center)
-                    .padding()
-            }
-            Spacer()
-        } else if reservationService.reservations.isEmpty {
-            Spacer()
-            VStack {
-                Image(systemName: "calendar")
-                    .font(.largeTitle)
-                    .foregroundColor(.gray)
-                Text("Aucune réservation")
-                    .font(.headline)
-                Text("Vos réservations apparaîtront ici")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-            }
-            Spacer()
-        } else {
-            ScrollView {
-                LazyVStack(spacing: 15) {
-                    ForEach(reservationService.reservations) { reservation in
-                        ReservationCard(reservation: reservation)
-                    }
+        VStack {
+            // Filtre par statut
+            Picker("Filtre", selection: $selectedStatusFilter) {
+                ForEach(ReservationStatusFilter.allCases, id: \.self) { filter in
+                    Text(filter.rawValue).tag(filter)
                 }
-                .padding()
+            }
+            .pickerStyle(SegmentedPickerStyle())
+            .padding(.horizontal)
+            
+            if reservationService.isLoading {
+                Spacer()
+                ProgressView("Chargement des réservations...")
+                Spacer()
+            } else if let errorMessage = reservationService.errorMessage {
+                Spacer()
+                VStack {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.largeTitle)
+                        .foregroundColor(.orange)
+                    Text("Erreur")
+                        .font(.headline)
+                    Text(errorMessage)
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .multilineTextAlignment(.center)
+                        .padding()
+                }
+                Spacer()
+            } else if filteredReservations.isEmpty {
+                Spacer()
+                VStack {
+                    Image(systemName: selectedStatusFilter == .all ? "calendar" : "calendar.badge.exclamationmark")
+                        .font(.largeTitle)
+                        .foregroundColor(.gray)
+                    Text(selectedStatusFilter == .all ? "Aucune réservation" : "Aucune réservation \(selectedStatusFilter.rawValue.lowercased())")
+                        .font(.headline)
+                    Text("Vos réservations apparaîtront ici")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                }
+                Spacer()
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 15) {
+                        ForEach(filteredReservations) { reservation in
+                            ReservationCard(reservation: reservation)
+                        }
+                    }
+                    .padding()
+                }
             }
         }
     }
@@ -363,7 +398,7 @@ struct FavoritesView: View {
     
     private func getDestination(for destinationId: String) -> Destination {
         return destinationService.destinations.first { $0.id == destinationId } ?? 
-               Destination(id: "", title: "", type: "", location: "", notes: nil, lat: 0, long: 0, categoryId: nil, imagePath: nil)
+        Destination(id: "", title: "", type: "", location: "", notes: nil, lat: 0, long: 0, categoryId: nil, imagePath: nil, price: 0)
     }
 }
 
@@ -408,9 +443,15 @@ struct FavoriteCard: View {
                 Text(destination?.title ?? "Destination")
                     .font(.headline)
                 
-                Text("À partir de \(Int.random(in: 500...2000))€")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
+                HStack {
+                    Text("À partir de")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                    Text("\(Int(destination?.price ?? 799))€")
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.blue)
+                }
                 
                 HStack {
                     Image(systemName: "star.fill")

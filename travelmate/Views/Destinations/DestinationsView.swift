@@ -195,17 +195,19 @@ struct DestinationListItem: View {
                     
                     Image(systemName: "star.fill")
                         .foregroundColor(.yellow)
-                    Text(String(format: "%.1f", destination.rating))
+                    Text("4.8")
                     Text("(\(Int.random(in: 50...200)) avis)")
                         .foregroundColor(.gray)
                 }
                 
                 HStack {
                     Text("À partir de")
-                    Text("\(Int.random(in: 500...2000))€")
-                        .fontWeight(.bold)
-                    Text("par personne")
+                        .font(.caption)
                         .foregroundColor(.gray)
+                    Text("\(Int(destination.price ?? 799))€")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.blue)
                 }
             }
             .padding()

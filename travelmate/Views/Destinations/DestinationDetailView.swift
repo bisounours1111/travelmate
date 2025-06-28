@@ -39,6 +39,10 @@ struct DestinationDetailView: View {
                                     .foregroundColor(favoriteService.isFavorite(userId: currentUser.id, destinationId: destination.id) ? .red : .gray)
                                     .font(.title2)
                             }
+                            .onTapGesture {
+                                // Forcer la mise à jour de l'interface
+                                favoriteService.objectWillChange.send()
+                            }
                         }
                     }
                     
@@ -99,7 +103,7 @@ struct DestinationDetailView: View {
                 Spacer()
                 
                 // Barre de réservation
-                BookingBar(showingBookingSheet: $showingBookingSheet)
+                BookingBar(showingBookingSheet: $showingBookingSheet, destination: destination)
             }
         )
         .sheet(isPresented: $showingBookingSheet) {
@@ -360,6 +364,7 @@ struct InfoSection: View {
 
 struct BookingBar: View {
     @Binding var showingBookingSheet: Bool
+    let destination: Destination
     
     var body: some View {
         HStack {
@@ -368,7 +373,7 @@ struct BookingBar: View {
                     .font(.subheadline)
                     .foregroundColor(.gray)
                 
-                Text("799€")
+                Text("\(Int(destination.price ?? 799))€")
                     .font(.title2)
                     .fontWeight(.bold)
                 
@@ -408,7 +413,7 @@ struct BookingView: View {
     @State private var createdReservation: Reservation?
     @State private var errorMessage: String?
     
-    private var pricePerPerson: Int { Int.random(in: 500...2000) }
+    private var pricePerPerson: Int { Int(destination.price ?? 799) }
     private var totalPrice: Int { pricePerPerson * numberOfPeople }
     
     var body: some View {

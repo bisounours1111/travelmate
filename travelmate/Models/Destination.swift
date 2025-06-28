@@ -10,6 +10,7 @@ struct Destination: Identifiable, Codable {
     let long: Double
     let categoryId: String?
     let imagePath: String?
+    let price: Double?
     
     // Propriétés calculées pour la compatibilité avec l'interface existante
     var name: String { title }
@@ -23,7 +24,14 @@ struct Destination: Identifiable, Codable {
     var climate: String { "Tempéré" } // Valeur par défaut
     var culture: String { "Locale" } // Valeur par défaut
     var activities: [Activity] { [] } // À adapter selon vos besoins
-    var priceRange: PriceRange { .moderate } // Valeur par défaut
+    var priceRange: PriceRange { 
+        guard let price = price else { return .moderate }
+        switch price {
+        case 0..<500: return .budget
+        case 500..<1500: return .moderate
+        default: return .luxury
+        }
+    }
     var rating: Double { 4.5 } // Valeur par défaut
     
     struct Location: Codable {
@@ -66,6 +74,7 @@ struct Destination: Identifiable, Codable {
         case long
         case categoryId = "category_id"
         case imagePath = "image_path"
+        case price
     }
     
     // Propriété calculée pour la compatibilité avec l'interface existante
