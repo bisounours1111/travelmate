@@ -8,10 +8,14 @@
 import SwiftUI
 
 @main
-struct travelmateApp: App {
+struct TravelMateApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @StateObject var viewModel: TravelAppViewModel = TravelAppViewModel()
+    @StateObject var authService: AuthService = AuthService()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView().environmentObject(viewModel).environmentObject(authService)
         }
     }
 }
