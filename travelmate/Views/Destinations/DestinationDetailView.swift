@@ -11,6 +11,7 @@ struct DestinationDetailView: View {
     @EnvironmentObject var authService: AuthService
     @State private var favoriteCount = 0
     @State private var reviewStats: ReviewStats?
+    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         ScrollView {
@@ -18,10 +19,7 @@ struct DestinationDetailView: View {
                 // Informations principales en haut
                 VStack(alignment: .leading, spacing: 15) {
                     HStack {
-                        Text(destination.title)
-                            .font(.title)
-                            .fontWeight(.bold)
-                        
+                        Spacer(minLength: 0)
                         Spacer()
                         
                         // Bouton favori avec compteur
@@ -73,7 +71,7 @@ struct DestinationDetailView: View {
                         .foregroundColor(.gray)
                 }
                 .padding(.horizontal)
-                .padding(.top, 60) // Marge en haut pour éviter la barre de navigation
+                .padding(.top, 60)
                 
                 // Carrousel d'images en dessous
                 if !destination.imageURLs.isEmpty {
@@ -117,26 +115,9 @@ struct DestinationDetailView: View {
             }
         }
         .ignoresSafeArea(edges: .top)
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: {
-                    // Action de retour automatique
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                            .font(.title3)
-                        Text("Retour")
-                            .font(.body)
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.black.opacity(0.6))
-                    .cornerRadius(20)
-                }
-            }
-        }
+        .navigationBarBackButtonHidden(false)
+        .navigationTitle(destination.title)
+        .navigationBarTitleDisplayMode(.inline)
         .overlay(
             VStack {
                 Spacer()
