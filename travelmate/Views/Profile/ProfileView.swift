@@ -591,20 +591,6 @@ struct SettingsView: View {
                 }
             }
             
-            Section(header: Text("Compte")) {
-                NavigationLink("Informations personnelles") {
-                    PersonalInfoView()
-                }
-                
-                NavigationLink("Sécurité") {
-                    SecurityView()
-                }
-                
-                NavigationLink("Paiement") {
-                    PaymentView()
-                }
-            }
-            
             Section(header: Text("À propos")) {
                 NavigationLink("Mentions légales") {
                     LegalView()
