@@ -32,6 +32,13 @@ struct DestinationsView: View {
     
     // Gestion du focus pour éviter que le clavier reste ouvert
     @FocusState private var isStartLocationFocused: Bool
+    
+    // État pour réduire/agrandir la section des inputs
+    @State private var isInputSectionCollapsed = false
+    
+    // États pour gérer l'affichage des sections de résultats
+    @State private var showActivities = true
+    @State private var showRouteDetails = true
 
     // Variables privées pour simplifier les expressions
     private var canSearch: Bool {
@@ -44,7 +51,15 @@ struct DestinationsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            inputSection
+            // Bouton de toggle pour réduire/agrandir la section des inputs
+            toggleButton
+            
+            // Section des inputs (réduite ou étendue)
+            if !isInputSectionCollapsed {
+                inputSection
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+            
             mainContentSection
         }
         .navigationTitle("Destinations")
@@ -65,15 +80,43 @@ struct DestinationsView: View {
     
     // MARK: - Sections de la vue
     
+    private var toggleButton: some View {
+        HStack {
+            Spacer()
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isInputSectionCollapsed.toggle()
+                }
+            }) {
+                HStack(spacing: 4) {
+                    Image(systemName: isInputSectionCollapsed ? "chevron.down" : "chevron.up")
+                        .font(.caption)
+                    Text(isInputSectionCollapsed ? "Afficher les options" : "Masquer les options")
+                        .font(.caption)
+                }
+                .foregroundColor(.blue)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color(.systemGray6))
+                .cornerRadius(15)
+            }
+            Spacer()
+        }
+        .padding(.vertical, 8)
+        .background(Color(.systemBackground))
+    }
+    
     private var inputSection: some View {
-        VStack(spacing: 15) {
+        VStack(spacing: 12) {
             startLocationInput
             destinationPicker
             activityTypePicker
             searchButton
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.bottom)
         .background(Color(.systemGray6))
+        .animation(.easeInOut(duration: 0.3), value: isInputSectionCollapsed)
     }
     
     private var startLocationInput: some View {
@@ -269,6 +312,144 @@ struct DestinationsView: View {
     
     private var routeResultsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
+            // En-tête avec toggles
+            HStack {
+                Text("Résultats de l'itinéraire")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                
+                Spacer()
+                
+                // Toggle pour les activités
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showActivities.toggle()
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: showActivities ? "eye.fill" : "eye.slash.fill")
+                            .font(.caption)
+                        Text("Activités")
+                            .font(.caption)
+                    }
+                    .foregroundColor(showActivities ? .blue : .gray)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(showActivities ? Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
+                    .cornerRadius(8)
+                }
+                
+                // Toggle pour les détails du trajet
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showRouteDetails.toggle()
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: showRouteDetails ? "eye.fill" : "eye.slash.fill")
+                            .font(.caption)
+                        Text("Trajet")
+                            .font(.caption)
+                    }
+                    .foregroundColor(showRouteDetails ? .blue : .gray)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(showRouteDetails ? Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
+                    .cornerRadius(8)
+                }
+            }
+            .padding(.horizontal)
+            
+            // Section des détails du trajet
+            if showRouteDetails {
+                routeDetailsSection
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+            
+            // Section des activités
+            if showActivities {
+                activitiesSection
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .padding(.vertical)
+        .background(Color(.systemGray6))
+    }
+    
+    private var routeDetailsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Détails du trajet")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                
+                Spacer()
+            }
+            .padding(.horizontal)
+            
+            if let route = routeService.currentRoute {
+                VStack(spacing: 8) {
+                    // Distance et durée
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Distance")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            Text(route.route.legs.first?.distance.text ?? "N/A")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                        }
+                        
+                        Spacer()
+                        
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("Durée")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            Text(route.route.legs.first?.duration.text ?? "N/A")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                        }
+                    }
+                    .padding()
+                    .background(Color.white)
+                    .cornerRadius(12)
+                    .shadow(radius: 2)
+                    
+                    // Points de départ et d'arrivée
+                    VStack(spacing: 8) {
+                        if let startLocation = selectedStartLocation {
+                            HStack {
+                                Image(systemName: "location.circle.fill")
+                                    .foregroundColor(.green)
+                                Text("Départ: \(startLocation.name)")
+                                    .font(.subheadline)
+                                Spacer()
+                            }
+                        }
+                        
+                        if let destination = selectedDestination {
+                            HStack {
+                                Image(systemName: "mappin.circle.fill")
+                                    .foregroundColor(.red)
+                                Text("Arrivée: \(destination.title)")
+                                    .font(.subheadline)
+                                Spacer()
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color.white)
+                    .cornerRadius(12)
+                    .shadow(radius: 2)
+                }
+                .padding(.horizontal)
+            }
+        }
+    }
+    
+    private var activitiesSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("Activités trouvées")
                     .font(.headline)
@@ -302,8 +483,6 @@ struct DestinationsView: View {
                     .padding()
             }
         }
-        .padding(.vertical)
-        .background(Color(.systemGray6))
     }
     
     private var mapView: some View {
@@ -475,43 +654,88 @@ struct DestinationsView: View {
     
     private func updateMapRegion(for route: RouteWithActivities) {
         // Calculer les coordonnées min/max pour centrer la carte
-        var allCoordinates = route.activities.map { 
-            CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) 
+        var allCoordinates: [CLLocationCoordinate2D] = []
+        
+        // Ajouter les activités avec validation
+        for activity in route.activities {
+            let lat = activity.latitude
+            let lng = activity.longitude
+            
+            // Vérifier que les coordonnées sont valides (pas NaN et dans les limites)
+            if !lat.isNaN && !lng.isNaN && 
+               lat >= -90 && lat <= 90 && 
+               lng >= -180 && lng <= 180 {
+                allCoordinates.append(CLLocationCoordinate2D(latitude: lat, longitude: lng))
+            }
         }
         
+        // Ajouter le point de départ avec validation
         if let startLocation = selectedStartLocation {
-            allCoordinates.append(CLLocationCoordinate2D(
-                latitude: startLocation.latitude, 
-                longitude: startLocation.longitude
-            ))
+            let lat = startLocation.latitude
+            let lng = startLocation.longitude
+            
+            if !lat.isNaN && !lng.isNaN && 
+               lat >= -90 && lat <= 90 && 
+               lng >= -180 && lng <= 180 {
+                allCoordinates.append(CLLocationCoordinate2D(latitude: lat, longitude: lng))
+            }
         }
         
+        // Ajouter le point d'arrivée avec validation
         if let destination = selectedDestination {
-            allCoordinates.append(CLLocationCoordinate2D(
-                latitude: destination.lat, 
-                longitude: destination.long
-            ))
+            let lat = destination.lat
+            let lng = destination.long
+            
+            if !lat.isNaN && !lng.isNaN && 
+               lat >= -90 && lat <= 90 && 
+               lng >= -180 && lng <= 180 {
+                allCoordinates.append(CLLocationCoordinate2D(latitude: lat, longitude: lng))
+            }
         }
         
-        if !allCoordinates.isEmpty {
-            let minLat = allCoordinates.map { $0.latitude }.min() ?? 0
-            let maxLat = allCoordinates.map { $0.latitude }.max() ?? 0
-            let minLon = allCoordinates.map { $0.longitude }.min() ?? 0
-            let maxLon = allCoordinates.map { $0.longitude }.max() ?? 0
-            
-            let centerLat = (minLat + maxLat) / 2
-            let centerLon = (minLon + maxLon) / 2
-            let latDelta = (maxLat - minLat) * 1.5 // 50% de marge
-            let lonDelta = (maxLon - minLon) * 1.5
-            
-            region = MKCoordinateRegion(
-                center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
-                span: MKCoordinateSpan(
-                    latitudeDelta: max(latDelta, 0.01), // Minimum 0.01
-                    longitudeDelta: max(lonDelta, 0.01)
-                )
-            )
+        // Vérifier qu'on a au moins des coordonnées valides
+        guard !allCoordinates.isEmpty else {
+            print("⚠️ Aucune coordonnée valide trouvée pour centrer la carte")
+            return
         }
+        
+        // Calculer les min/max avec validation supplémentaire
+        let latitudes = allCoordinates.map { $0.latitude }
+        let longitudes = allCoordinates.map { $0.longitude }
+        
+        guard let minLat = latitudes.min(), let maxLat = latitudes.max(),
+              let minLon = longitudes.min(), let maxLon = longitudes.max(),
+              !minLat.isNaN && !maxLat.isNaN && !minLon.isNaN && !maxLon.isNaN else {
+            print("⚠️ Coordonnées min/max invalides")
+            return
+        }
+        
+        let centerLat = (minLat + maxLat) / 2
+        let centerLon = (minLon + maxLon) / 2
+        let latDelta = max((maxLat - minLat) * 1.5, 0.01) // Minimum 0.01
+        let lonDelta = max((maxLon - minLon) * 1.5, 0.01)
+        
+        // Validation finale des coordonnées de la région
+        guard !centerLat.isNaN && !centerLon.isNaN && 
+              !latDelta.isNaN && !lonDelta.isNaN &&
+              centerLat >= -90 && centerLat <= 90 &&
+              centerLon >= -180 && centerLon <= 180 else {
+            print("⚠️ Région finale invalide, utilisation des coordonnées par défaut")
+            region = MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: 48.8566, longitude: 2.3522),
+                span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
+            )
+            return
+        }
+        
+        print("🗺️ Mise à jour de la région de la carte:")
+        print("  Centre: (\(centerLat), \(centerLon))")
+        print("  Span: (\(latDelta), \(lonDelta))")
+        
+        region = MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
+            span: MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta)
+        )
     }
 }
 
@@ -687,14 +911,18 @@ struct GPSMapView: View {
     @Binding var region: MKCoordinateRegion
     
     var body: some View {
-        Map(coordinateRegion: $region, annotationItems: gpsAnnotations) { annotation in
-            MapAnnotation(coordinate: annotation.coordinate) {
-                annotation.marker
-            }
+        let polylineCoordinates = decodePolyline(route.route.overview_polyline.points)
+        
+        print("🗺️ Polyline décodée: \(polylineCoordinates.count) points")
+        if !polylineCoordinates.isEmpty {
+            print("  Premier point: (\(polylineCoordinates.first!.latitude), \(polylineCoordinates.first!.longitude))")
+            print("  Dernier point: (\(polylineCoordinates.last!.latitude), \(polylineCoordinates.last!.longitude))")
         }
-        .overlay(
-            // Afficher la polyline de l'itinéraire
-            RoutePolylineOverlay(route: route.route)
+        
+        return MapViewWithPolyline(
+            region: $region,
+            annotations: gpsAnnotations,
+            polylineCoordinates: polylineCoordinates
         )
     }
     
@@ -703,71 +931,197 @@ struct GPSMapView: View {
         
         // Point de départ
         if let startLocation = startLocation {
-            annotations.append(MapAnnotationItem(
-                coordinate: CLLocationCoordinate2D(latitude: startLocation.latitude, longitude: startLocation.longitude),
-                marker: AnyView(StartLocationMarker(location: startLocation))
-            ))
+            let lat = startLocation.latitude
+            let lng = startLocation.longitude
+            
+            if !lat.isNaN && !lng.isNaN && 
+               lat >= -90 && lat <= 90 && 
+               lng >= -180 && lng <= 180 {
+                annotations.append(MapAnnotationItem(
+                    coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lng),
+                    marker: AnyView(StartLocationMarker(location: startLocation))
+                ))
+            }
         }
         
         // Point d'arrivée
         if let destination = destination {
-            annotations.append(MapAnnotationItem(
-                coordinate: CLLocationCoordinate2D(latitude: destination.lat, longitude: destination.long),
-                marker: AnyView(EndLocationMarker(destination: destination))
-            ))
+            let lat = destination.lat
+            let lng = destination.long
+            
+            if !lat.isNaN && !lng.isNaN && 
+               lat >= -90 && lat <= 90 && 
+               lng >= -180 && lng <= 180 {
+                annotations.append(MapAnnotationItem(
+                    coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lng),
+                    marker: AnyView(EndLocationMarker(destination: destination))
+                ))
+            }
         }
         
         // Activités le long de l'itinéraire
         for activity in route.activities {
-            annotations.append(MapAnnotationItem(
-                coordinate: CLLocationCoordinate2D(latitude: activity.latitude, longitude: activity.longitude),
-                marker: AnyView(ActivityMapMarker(activity: activity))
-            ))
+            let lat = activity.latitude
+            let lng = activity.longitude
+            
+            if !lat.isNaN && !lng.isNaN && 
+               lat >= -90 && lat <= 90 && 
+               lng >= -180 && lng <= 180 {
+                annotations.append(MapAnnotationItem(
+                    coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lng),
+                    marker: AnyView(ActivityMapMarker(activity: activity))
+                ))
+            }
         }
         
         return annotations
     }
 }
 
+// MARK: - MapView avec polyline personnalisée
+
+struct MapViewWithPolyline: UIViewRepresentable {
+    @Binding var region: MKCoordinateRegion
+    let annotations: [MapAnnotationItem]
+    let polylineCoordinates: [CLLocationCoordinate2D]
+    
+    func makeUIView(context: Context) -> MKMapView {
+        let mapView = MKMapView()
+        mapView.delegate = context.coordinator
+        mapView.setRegion(region, animated: false)
+        return mapView
+    }
+    
+    func updateUIView(_ mapView: MKMapView, context: Context) {
+        mapView.setRegion(region, animated: true)
+        
+        // Supprimer les anciennes annotations et overlays
+        mapView.removeAnnotations(mapView.annotations)
+        mapView.removeOverlays(mapView.overlays)
+        
+        // Ajouter la polyline
+        if polylineCoordinates.count > 1 {
+            let polyline = MKPolyline(coordinates: polylineCoordinates, count: polylineCoordinates.count)
+            mapView.addOverlay(polyline)
+        }
+        
+        // Ajouter les annotations personnalisées
+        for annotationItem in annotations {
+            let annotation = CustomAnnotation(
+                coordinate: annotationItem.coordinate,
+                view: annotationItem.marker
+            )
+            mapView.addAnnotation(annotation)
+        }
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, MKMapViewDelegate {
+        var parent: MapViewWithPolyline
+        
+        init(_ parent: MapViewWithPolyline) {
+            self.parent = parent
+        }
+        
+        func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+            if let polyline = overlay as? MKPolyline {
+                let renderer = MKPolylineRenderer(polyline: polyline)
+                renderer.strokeColor = UIColor.purple
+                renderer.lineWidth = 4
+                renderer.lineCap = .round
+                renderer.lineJoin = .round
+                return renderer
+            }
+            return MKOverlayRenderer(overlay: overlay)
+        }
+        
+        func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            if let customAnnotation = annotation as? CustomAnnotation {
+                let identifier = "CustomAnnotation"
+                var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
+                
+                if annotationView == nil {
+                    annotationView = MKAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+                    annotationView?.canShowCallout = false
+                }
+                
+                annotationView?.annotation = annotation
+                
+                // Convertir la vue SwiftUI en UIView
+                let hostingController = UIHostingController(rootView: customAnnotation.swiftUIView)
+                hostingController.view.backgroundColor = UIColor.clear
+                hostingController.view.frame = CGRect(x: 0, y: 0, width: 80, height: 80)
+                
+                // Supprimer l'ancienne vue si elle existe
+                annotationView?.subviews.forEach { $0.removeFromSuperview() }
+                annotationView?.addSubview(hostingController.view)
+                annotationView?.frame = hostingController.view.frame
+                
+                return annotationView
+            }
+            return nil
+        }
+        
+        func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+            parent.region = mapView.region
+        }
+    }
+}
+
+// Annotation personnalisée pour porter les vues SwiftUI
+class CustomAnnotation: NSObject, MKAnnotation {
+    let coordinate: CLLocationCoordinate2D
+    let swiftUIView: AnyView
+    
+    init(coordinate: CLLocationCoordinate2D, view: AnyView) {
+        self.coordinate = coordinate
+        self.swiftUIView = view
+    }
+}
+
+// MARK: - Structures pour l'affichage GPS (plus nécessaire)
+
 // Fonction utilitaire pour décoder les coordonnées de la polyline
 func decodePolyline(_ encodedString: String) -> [CLLocationCoordinate2D] {
     var coordinates: [CLLocationCoordinate2D] = []
-    var index = 0
-    var lat = 0.0
-    var lng = 0.0
-    
-    while index < encodedString.count {
+    var index = encodedString.startIndex
+    let end = encodedString.endIndex
+    var lat = 0
+    var lng = 0
+
+    while index < end {
+        var b: Int
         var shift = 0
         var result = 0
-        
         repeat {
-            let char = encodedString[encodedString.index(encodedString.startIndex, offsetBy: index)]
-            let value = Int(char.asciiValue ?? 0) - 63
-            result |= (value & 0x1F) << shift
+            guard index < end else { return coordinates }
+            b = Int(encodedString[index].asciiValue ?? 63) - 63
+            result |= (b & 0x1F) << shift
             shift += 5
-            index += 1
-        } while index < encodedString.count && encodedString[encodedString.index(encodedString.startIndex, offsetBy: index - 1)].asciiValue! >= 0x20
-        
+            index = encodedString.index(after: index)
+        } while b >= 0x20 && index < end
         let dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1))
-        lat += Double(dlat)
-        
+        lat += dlat
+
         shift = 0
         result = 0
-        
         repeat {
-            let char = encodedString[encodedString.index(encodedString.startIndex, offsetBy: index)]
-            let value = Int(char.asciiValue ?? 0) - 63
-            result |= (value & 0x1F) << shift
+            guard index < end else { return coordinates }
+            b = Int(encodedString[index].asciiValue ?? 63) - 63
+            result |= (b & 0x1F) << shift
             shift += 5
-            index += 1
-        } while index < encodedString.count && encodedString[encodedString.index(encodedString.startIndex, offsetBy: index - 1)].asciiValue! >= 0x20
-        
+            index = encodedString.index(after: index)
+        } while b >= 0x20 && index < end
         let dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1))
-        lng += Double(dlng)
-        
-        coordinates.append(CLLocationCoordinate2D(latitude: lat / 1e5, longitude: lng / 1e5))
+        lng += dlng
+
+        let latitude = Double(lat) / 1e5
+        let longitude = Double(lng) / 1e5
+        coordinates.append(CLLocationCoordinate2D(latitude: latitude, longitude: longitude))
     }
-    
     return coordinates
 }
 
@@ -903,7 +1257,6 @@ struct RouteActivityCard: View {
         .padding(12)
         .background(Color.white)
         .cornerRadius(12)
-        .shadow(radius: 2)
         .frame(width: 200)
     }
     
@@ -926,17 +1279,5 @@ struct RouteActivityCard: View {
         case "bar": return "wineglass.fill"
         default: return "mappin.circle.fill"
         }
-    }
-}
-
-// MARK: - Structures pour l'affichage GPS
-
-struct RoutePolylineOverlay: View {
-    let route: RouteInfo
-    
-    var body: some View {
-        // Pour l'instant, on utilise une approche simple
-        // L'implémentation complète nécessiterait MapKit avec polyline
-        EmptyView()
     }
 } 
