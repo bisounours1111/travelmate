@@ -388,67 +388,198 @@ struct BookingView: View {
     
     var body: some View {
         NavigationStack {
-            Form {
-                Section(header: Text("Dates")) {
-                    DatePicker("Date de départ", selection: $selectedStartDate, displayedComponents: .date)
-                    DatePicker("Date de retour", selection: $selectedEndDate, displayedComponents: .date)
-                }
-                
-                Section(header: Text("Voyageurs")) {
-                    Stepper("Nombre de chambres: \(numberOfChamber)", value: $numberOfChamber, in: 1...10)
-                }
-                
-                Section(header: Text("Récapitulatif")) {
-                    HStack {
-                        Text("Prix par chambre")
-                        Spacer()
-                        Text("\(pricePerChamber)€")
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Section du calendrier de disponibilité
+                    VStack(alignment: .leading, spacing: 15) {
+                        Text("Sélectionnez vos dates")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .padding(.horizontal)
+                        
+                        AvailabilityCalendarView(
+                            destinationId: destination.id,
+                            selectedStartDate: $selectedStartDate,
+                            selectedEndDate: $selectedEndDate
+                        )
+                        .background(Color.white)
+                        .cornerRadius(15)
+                        .shadow(radius: 5)
+                        .padding(.horizontal)
                     }
                     
-                    HStack {
-                        Text("Total")
-                            .fontWeight(.bold)
-                        Spacer()
-                        Text("\(totalPrice)€")
-                            .fontWeight(.bold)
+                    // Dates sélectionnées
+                    if selectedStartDate != selectedEndDate {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Dates sélectionnées")
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .padding(.horizontal)
+                            
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text("Date de départ")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    Text(formatDate(selectedStartDate))
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                }
+                                
+                                Spacer()
+                                
+                                Image(systemName: "arrow.right")
+                                    .foregroundColor(.gray)
+                                
+                                Spacer()
+                                
+                                VStack(alignment: .trailing) {
+                                    Text("Date de retour")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    Text(formatDate(selectedEndDate))
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                }
+                            }
+                            .padding()
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(10)
+                            .padding(.horizontal)
+                        }
                     }
-                }
-                
-                if let errorMessage = errorMessage {
-                    Section {
+                    
+                    // Section voyageurs
+                    VStack(alignment: .leading, spacing: 15) {
+                        Text("Voyageurs")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .padding(.horizontal)
+                        
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text("Nombre de chambres")
+                                    .font(.subheadline)
+                                Text("\(numberOfChamber) chambre\(numberOfChamber > 1 ? "s" : "")")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+                            
+                            Spacer()
+                            
+                            HStack(spacing: 15) {
+                                Button(action: {
+                                    if numberOfChamber > 1 {
+                                        numberOfChamber -= 1
+                                    }
+                                }) {
+                                    Image(systemName: "minus.circle.fill")
+                                        .font(.title2)
+                                        .foregroundColor(numberOfChamber > 1 ? .blue : .gray)
+                                }
+                                .disabled(numberOfChamber <= 1)
+                                
+                                Text("\(numberOfChamber)")
+                                    .font(.title3)
+                                    .fontWeight(.bold)
+                                    .frame(minWidth: 30)
+                                
+                                Button(action: {
+                                    if numberOfChamber < 10 {
+                                        numberOfChamber += 1
+                                    }
+                                }) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.title2)
+                                        .foregroundColor(numberOfChamber < 10 ? .blue : .gray)
+                                }
+                                .disabled(numberOfChamber >= 10)
+                            }
+                        }
+                        .padding()
+                        .background(Color.white)
+                        .cornerRadius(10)
+                        .shadow(radius: 3)
+                        .padding(.horizontal)
+                    }
+                    
+                    // Récapitulatif des prix
+                    if numberOfDays > 0 {
+                        VStack(alignment: .leading, spacing: 15) {
+                            Text("Récapitulatif")
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .padding(.horizontal)
+                            
+                            VStack(spacing: 10) {
+                                HStack {
+                                    Text("Prix par chambre (\(numberOfDays) nuit\(numberOfDays > 1 ? "s" : ""))")
+                                    Spacer()
+                                    Text("\(pricePerChamber)€")
+                                }
+                                
+                                HStack {
+                                    Text("\(numberOfChamber) chambre\(numberOfChamber > 1 ? "s" : "")")
+                                    Spacer()
+                                    Text("x \(numberOfChamber)")
+                                }
+                                
+                                Divider()
+                                
+                                HStack {
+                                    Text("Total")
+                                        .fontWeight(.bold)
+                                    Spacer()
+                                    Text("\(totalPrice)€")
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                            .padding()
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .shadow(radius: 3)
+                            .padding(.horizontal)
+                        }
+                    }
+                    
+                    // Message d'erreur
+                    if let errorMessage = errorMessage {
                         Text(errorMessage)
                             .foregroundColor(.red)
                             .font(.caption)
+                            .padding()
+                            .background(Color.red.opacity(0.1))
+                            .cornerRadius(8)
+                            .padding(.horizontal)
                     }
-                }
-                
-                Section {
+                    
+                    // Bouton de réservation
                     Button(action: {
                         Task {
                             await createReservation()
                         }
                     }) {
-                        if isProcessing {
-                            HStack {
+                        HStack {
+                            if isProcessing {
                                 ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle())
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(0.8)
                                 Text("Création de la réservation...")
+                            } else {
+                                Text("Procéder au paiement")
+                                    .fontWeight(.medium)
                             }
-                            .frame(maxWidth: .infinity)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.blue)
-                            .cornerRadius(10)
-                        } else {
-                            Text("Procéder au paiement")
-                                .frame(maxWidth: .infinity)
-                                .foregroundColor(.white)
-                                .padding()
-                                .background(Color.blue)
-                                .cornerRadius(10)
                         }
+                        .frame(maxWidth: .infinity)
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(isProcessing || numberOfDays <= 0 ? Color.gray : Color.blue)
+                        .cornerRadius(10)
                     }
-                    .disabled(isProcessing)
+                    .disabled(isProcessing || numberOfDays <= 0)
+                    .padding(.horizontal)
+                    .padding(.bottom, 20)
                 }
             }
             .navigationTitle("Réservation")
@@ -485,6 +616,13 @@ struct BookingView: View {
                 }
             }
         }
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .long
+        formatter.locale = Locale(identifier: "fr_FR")
+        return formatter.string(from: date)
     }
     
     private func createReservation() async {

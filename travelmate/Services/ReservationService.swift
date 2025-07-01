@@ -285,4 +285,34 @@ class ReservationService: ObservableObject {
             return false // Par sécurité, on bloque si erreur
         }
     }
+    
+    // Récupère toutes les réservations pour une destination (pour l'affichage du calendrier)
+    func getDestinationReservations(destinationId: String) async -> [Reservation] {
+        do {
+            let response = try await supabase
+                .from("reservations")
+                .select()
+                .eq("destination_id", value: destinationId)
+                .in("status", value: ["pending", "confirmed"])
+                .execute()
+            
+            let data = response.data
+            if let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                var decodedReservations: [Reservation] = []
+                
+                for reservationDict in jsonArray {
+                    if let reservation = try? decodeReservation(from: reservationDict) {
+                        decodedReservations.append(reservation)
+                    }
+                }
+                
+                return decodedReservations
+            }
+            
+        } catch {
+            print("Erreur lors du chargement des réservations de destination: \(error.localizedDescription)")
+        }
+        
+        return []
+    }
 } 
