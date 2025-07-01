@@ -49,6 +49,7 @@ struct HomeView: View {
 
 struct HomeContentView: View {
     @StateObject private var destinationService = DestinationService()
+    @StateObject private var categoryService = CategoryService()
     
     var body: some View {
         ScrollView {
@@ -60,7 +61,7 @@ struct HomeContentView: View {
                 PopularDestinationsView(destinations: destinationService.destinations)
                 
                 // Catégories de voyage
-                TravelCategoriesView()
+                TravelCategoriesView(categories: categoryService.categories, isLoading: categoryService.isLoading)
                 
                 // Offres spéciales
                 SpecialOffersView()
@@ -69,11 +70,6 @@ struct HomeContentView: View {
         }
         .navigationTitle("TravelMate")
         .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                EmptyView()
-            }
-        }
     }
 }
 
@@ -81,23 +77,17 @@ struct HomeSearchBarView: View {
     @State private var searchText = ""
     
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 0)
-                .fill(Color(.systemGray6))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .ignoresSafeArea(.all, edges: .top)
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.gray)
-                
-                TextField("Où souhaitez-vous aller ?", text: $searchText)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 12)
-            .cornerRadius(10)
-            .padding(.horizontal)
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.gray)
+            
+            TextField("Où souhaitez-vous aller ?", text: $searchText)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
         }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(Color(.systemGray6))
+        .cornerRadius(10)
     }
 }
 
@@ -225,18 +215,31 @@ struct DestinationCardView: View {
 }
 
 struct TravelCategoriesView: View {
+    let categories: [Category]
+    let isLoading: Bool
+    
     var body: some View {
         VStack(alignment: .leading) {
             Text("Catégories de voyage")
                 .font(.title2)
                 .fontWeight(.bold)
             
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 15) {
-                ForEach(0..<4) { _ in
-                    CategoryCardView()
+            if isLoading {
+                Text("Chargement des catégories...")
+                    .foregroundColor(.gray)
+                    .padding()
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHGrid(rows: [
+                        GridItem(.flexible()),
+                        GridItem(.flexible())
+                    ], spacing: 15) {
+                        ForEach(categories) { category in
+                            CategoryCardView(category: category)
+                                .frame(width: 160, height: 120)
+                        }
+                    }
+                    .padding(.horizontal)
                 }
             }
         }
@@ -244,16 +247,49 @@ struct TravelCategoriesView: View {
 }
 
 struct CategoryCardView: View {
+    let category: Category
+    
     var body: some View {
-        VStack {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.blue.opacity(0.2))
-                .frame(height: 100)
-                .overlay(
-                    Text("Catégorie")
-                        .foregroundColor(.blue)
-                )
+        ZStack {
+            // Image de fond depuis le bucket Supabase
+
+            if let imagePath = category.imagePath, !imagePath.isEmpty {
+                let fullURL = "https://etzdkvwucgaznmolqdyj.supabase.co/storage/v1/object/public/products/\(imagePath)"
+                AsyncImage(url: URL(string: fullURL)) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 160, height: 120)
+                        .clipped()
+                } placeholder: {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(category.categoryColor).opacity(0.2))
+                        .frame(width: 160, height: 120)
+                        .overlay(
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                        )
+                }
+            } else {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color(category.categoryColor).opacity(0.2))
+                    .frame(width: 160, height: 120)
+            }
+            
+            // Overlay avec icône et texte
+            VStack(spacing: 8) {
+                Text(category.name)
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .shadow(radius: 2)
+                    .padding(.top, 10)
+            }
+            .padding(8)
         }
+        .cornerRadius(10)
+        .shadow(radius: 3)
     }
 }
 

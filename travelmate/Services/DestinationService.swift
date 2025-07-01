@@ -30,7 +30,6 @@ class DestinationService: ObservableObject {
             
             // Décodage des données Data en JSON
             if let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-                print("Destinations récupérées: \(jsonArray.count)")
                 var decodedDestinations: [Destination] = []
                 
                 for destinationDict in jsonArray {
@@ -40,7 +39,6 @@ class DestinationService: ObservableObject {
                 }
                 
                 self.destinations = decodedDestinations
-                print("Destinations décodées avec succès: \(decodedDestinations.count)")
             } else {
                 throw NSError(domain: "DestinationService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Impossible de décoder les données JSON"])
             }

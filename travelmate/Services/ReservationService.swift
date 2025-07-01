@@ -108,23 +108,17 @@ class ReservationService: ObservableObject {
             
         } catch {
             errorMessage = "Erreur lors de la création de la réservation: \(error.localizedDescription)"
-            print("Erreur Supabase: \(error)")
             return (false, nil, nil)
         }
     }
     
     func confirmReservation(reservationId: String, paymentIntentId: String, userId: String) async -> Bool {
-        print("🔵 Début confirmation réservation: \(reservationId)")
-        print("🔵 Payment Intent ID: \(paymentIntentId)")
-        print("🔵 User ID: \(userId)")
         
         do {
             let updateData = ReservationUpdateData(
                 status: "confirmed",
                 stripe_payment_intent_id: paymentIntentId
             )
-            
-            print("🔵 Données de mise à jour: \(updateData)")
             
             let response = try await supabase
                 .from("reservations")
@@ -133,22 +127,17 @@ class ReservationService: ObservableObject {
                 .select() // Ajouter select() pour voir la réponse
                 .execute()
             
-            print("🟢 Réponse Supabase reçue")
             
             // Afficher les données de la réponse pour déboguer
             let responseData = response.data
-            print("🔵 Données de réponse: \(String(data: responseData, encoding: .utf8) ?? "Impossible de décoder")")
             
             // Recharger les réservations pour mettre à jour l'interface
             await fetchReservations(for: userId)
             
-            print("🟢 Réservation confirmée: \(reservationId)")
             return true
             
         } catch {
             errorMessage = "Erreur lors de la confirmation de la réservation: \(error.localizedDescription)"
-            print("🔴 Erreur Supabase: \(error)")
-            print("🔴 Détails de l'erreur: \(error)")
             return false
         }
     }
@@ -166,15 +155,12 @@ class ReservationService: ObservableObject {
                 .eq("id", value: reservationId)
                 .execute()
             
-            // Recharger les réservations
             await fetchReservations(for: userId)
             
-            print("🟡 Réservation annulée: \(reservationId)")
             return true
             
         } catch {
             errorMessage = "Erreur lors de l'annulation de la réservation: \(error.localizedDescription)"
-            print("Erreur Supabase: \(error)")
             return false
         }
     }
@@ -230,11 +216,7 @@ class ReservationService: ObservableObject {
             if let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
                let firstReservation = jsonArray.first,
                let id = firstReservation["id"] as? String {
-                print("🟢 ID de réservation extrait: \(id)")
                 return id
-            } else {
-                print("🔴 Impossible d'extraire l'ID de réservation")
-                print("🔴 Données reçues: \(String(data: data, encoding: .utf8) ?? "Impossible de décoder")")
             }
         } catch {
             print("🔴 Erreur extraction ID réservation: \(error)")

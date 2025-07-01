@@ -34,12 +34,10 @@ class ReviewService: ObservableObject {
                 }
                 
                 self.reviews = decodedReviews
-                print("🟢 Avis chargés: \(decodedReviews.count) avis pour la destination \(destinationId)")
             }
             
         } catch {
             errorMessage = "Erreur lors du chargement des avis: \(error.localizedDescription)"
-            print("🔴 Erreur Supabase: \(error)")
         }
         
         isLoading = false
@@ -58,7 +56,6 @@ class ReviewService: ObservableObject {
             let data = response.data
             if let reviewDict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let review = try? decodeReview(from: reviewDict) {
-                print("🟢 Avis utilisateur trouvé pour la destination \(destinationId)")
                 return review
             }
             
@@ -85,16 +82,12 @@ class ReviewService: ObservableObject {
                 .insert(reviewRequest)
                 .execute()
             
-            print("🟢 Avis créé avec succès pour la destination \(destinationId)")
-            
-            // Recharger les avis pour mettre à jour l'interface
             await fetchReviews(for: destinationId)
             
             return true
             
         } catch {
             errorMessage = "Erreur lors de la création de l'avis: \(error.localizedDescription)"
-            print("🔴 Erreur Supabase: \(error)")
             return false
         }
     }
@@ -111,9 +104,6 @@ class ReviewService: ObservableObject {
                 .eq("id", value: reviewId)
                 .execute()
             
-            print("🟢 Avis mis à jour avec succès")
-            
-            // Recharger les avis pour mettre à jour l'interface
             if let firstReview = reviews.first {
                 await fetchReviews(for: firstReview.destinationId)
             }
@@ -122,7 +112,6 @@ class ReviewService: ObservableObject {
             
         } catch {
             errorMessage = "Erreur lors de la mise à jour de l'avis: \(error.localizedDescription)"
-            print("🔴 Erreur Supabase: \(error)")
             return false
         }
     }
@@ -137,7 +126,6 @@ class ReviewService: ObservableObject {
                 .eq("id", value: reviewId)
                 .execute()
             
-            print("🟢 Avis supprimé avec succès")
             
             // Recharger les avis pour mettre à jour l'interface
             if let firstReview = reviews.first {
@@ -148,7 +136,6 @@ class ReviewService: ObservableObject {
             
         } catch {
             errorMessage = "Erreur lors de la suppression de l'avis: \(error.localizedDescription)"
-            print("🔴 Erreur Supabase: \(error)")
             return false
         }
     }

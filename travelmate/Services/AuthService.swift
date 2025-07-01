@@ -52,9 +52,7 @@ class AuthService: ObservableObject {
                     ])
                     .execute()
                 await setUserConnected()
-                print("Réponse Supabase: \(response)")
             } catch {
-                print("Erreur Supabase: \(error)")
                 return "Erreur lors de l'enregistrement de l'utilisateur"
             }
 
@@ -88,17 +86,14 @@ class AuthService: ObservableObject {
                 role: ""
             )
             do {
-                print("Base user: \(baseUser)")
                 let response = try await supabase
                     .from("user")
                     .select()
                     .eq("id_auth", value: baseUser.id)
                     .single()
                     .execute()
-                print("Raw response data: \(response.data)")
                 if let data = response.data as? Data {
                     if let userData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        print("User data: \(userData)")
                         let fullUser = AuthUser(
                             id: baseUser.id,
                             email: baseUser.email,
@@ -110,15 +105,12 @@ class AuthService: ObservableObject {
                             preferences: userData["preferences"] as? [String] ?? [],
                             role: userData["role"] as? String ?? ""
                         )
-                        print("Full user: \(fullUser)")
                         self.currentUser = fullUser
                     } else {
-                        print("No user data found")
                         self.currentUser = baseUser
                     }
                 }
             } catch {
-                print("Erreur lors de la récupération du profil utilisateur : \(error)")
                 self.currentUser = baseUser
             }
         }

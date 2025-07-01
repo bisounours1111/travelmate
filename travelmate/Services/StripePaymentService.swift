@@ -91,26 +91,17 @@ class StripePaymentService: NSObject, ObservableObject {
         errorMessage = nil
         
         do {
-            print("🔵 Stripe: Début du traitement du paiement")
-            print("🔵 Stripe: Client Secret: \(clientSecret.prefix(20))...")
-            print("🔵 Stripe: Payment Method ID: \(paymentMethodId)")
-            
-            // Configurer le PaymentIntent avec Stripe
             let paymentIntentParams = STPPaymentIntentParams(clientSecret: clientSecret)
             paymentIntentParams.paymentMethodId = paymentMethodId
             
             let result: Bool = try await withCheckedThrowingContinuation { continuation in
                 STPPaymentHandler.shared().confirmPayment(paymentIntentParams, with: self) { status, paymentIntent, error in
-                    print("🔵 Stripe: Statut reçu: \(status.rawValue)")
                     
                     if let error = error {
-                        print("🔴 Stripe: Erreur lors du paiement: \(error.localizedDescription)")
                         continuation.resume(throwing: error)
                     } else if status == .succeeded {
-                        print("🟢 Stripe: Paiement réussi")
                         continuation.resume(returning: true)
                     } else {
-                        print("🔴 Stripe: Paiement échoué avec statut: \(status.rawValue)")
                         continuation.resume(throwing: NSError(domain: "StripePaymentService", code: 3, userInfo: [NSLocalizedDescriptionKey: "Paiement échoué - Statut: \(status.rawValue)"]))
                     }
                 }
@@ -123,7 +114,6 @@ class StripePaymentService: NSObject, ObservableObject {
         } catch {
             isLoading = false
             let errorMessage = error.localizedDescription
-            print("🔴 Stripe: Erreur finale: \(errorMessage)")
             paymentStatus = .failed(errorMessage)
             self.errorMessage = "Erreur lors du paiement: \(errorMessage)"
             return false
