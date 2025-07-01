@@ -61,22 +61,21 @@ struct HomeContentView: View {
     @StateObject private var destinationService = DestinationService()
     @StateObject private var categoryService = CategoryService()
     @EnvironmentObject var searchViewModel: SearchViewModel
+    @EnvironmentObject private var favoriteService: FavoriteService
     @Binding var selectedTab: Int
     
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // En-tête avec recherche
-                HomeSearchBarView()
-                
                 // Destinations populaires
-                PopularDestinationsView(destinations: destinationService.destinations)
+                let promoDestinations = destinationService.destinations.filter { ($0.promo ?? 1) < 1 }
+                let classicDestinations = destinationService.destinations.filter { ($0.promo ?? 1) == 1 }
+                
+                PopularDestinationsView(promoDestinations: promoDestinations, classicDestinations: classicDestinations)
+                    .environmentObject(favoriteService)
                 
                 // Catégories de voyage
                 TravelCategoriesView(categories: categoryService.categories, isLoading: categoryService.isLoading, selectedTab: $selectedTab)
-                
-                // Offres spéciales
-                SpecialOffersView(destinations: destinationService.destinations)
             }
             .padding()
         }
@@ -104,23 +103,35 @@ struct HomeSearchBarView: View {
 }
 
 struct PopularDestinationsView: View {
-    let destinations: [Destination]
+    let promoDestinations: [Destination]
+    let classicDestinations: [Destination]
     @EnvironmentObject var favoriteService: FavoriteService
-    
+
     var body: some View {
-        VStack(alignment: .leading) {
-            Text("Destinations populaires")
-                .font(.title2)
-                .fontWeight(.bold)
-            
-            if destinations.isEmpty {
-                Text("Chargement des destinations...")
-                    .foregroundColor(.gray)
-                    .padding()
-            } else {
+        VStack(alignment: .leading, spacing: 20) {
+            if !promoDestinations.isEmpty {
+                Text("Offres spéciales")
+                    .font(.title2)
+                    .fontWeight(.bold)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 15) {
-                        ForEach(Array(destinations.prefix(5))) { destination in
+                        ForEach(promoDestinations.prefix(5)) { destination in
+                            NavigationLink(destination: DestinationDetailView(destination: destination)
+                                .environmentObject(favoriteService)) {
+                                DestinationCardView(destination: destination)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                }
+            }
+            if !classicDestinations.isEmpty {
+                Text("Destinations populaires")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 15) {
+                        ForEach(classicDestinations.prefix(5)) { destination in
                             NavigationLink(destination: DestinationDetailView(destination: destination)
                                 .environmentObject(favoriteService)) {
                                 DestinationCardView(destination: destination)
@@ -139,6 +150,19 @@ struct DestinationCardView: View {
     @EnvironmentObject var favoriteService: FavoriteService
     @EnvironmentObject var authService: AuthService
     @State private var favoriteCount = 0
+    
+    var promo: Double {
+        destination.promo ?? 1
+    }
+    var originalPrice: Double {
+        destination.price ?? 799
+    }
+    var discountedPrice: Double {
+        (destination.price ?? 799) * (destination.promo ?? 1)
+    }
+    var discountPercent: Int {
+        Int((1 - (destination.promo ?? 1)) * 100)
+    }
     
     var body: some View {
         VStack {
@@ -205,14 +229,35 @@ struct DestinationCardView: View {
                 .font(.headline)
                 .lineLimit(1)
             
-            HStack {
-                Text("À partir de")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-                Text("\(Int(destination.price ?? 799))€")
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .foregroundColor(.blue)
+            HStack(spacing: 8) {
+                if promo < 1 {
+                    Text("\(Int(originalPrice))€")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .strikethrough()
+                    Text("\(Int(discountedPrice))€")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.red)
+                    if discountPercent > 0 {
+                        Text("-\(discountPercent)%")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(Color.red)
+                            .cornerRadius(8)
+                    }
+                } else {
+                    Text("À partir de")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                    Text("\(Int(originalPrice))€")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.blue)
+                }
             }
         }
         .onAppear {
