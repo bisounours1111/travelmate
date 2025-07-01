@@ -245,7 +245,7 @@ struct ReservationCard: View {
                 
                 HStack {
                     Image(systemName: "person.2")
-                    Text("\(reservation.numberOfPeople) personne\(reservation.numberOfPeople > 1 ? "s" : "")")
+                    Text("\(reservation.numberOfChamber) personne\(reservation.numberOfChamber > 1 ? "s" : "")")
                 }
                 .foregroundColor(.gray)
                 

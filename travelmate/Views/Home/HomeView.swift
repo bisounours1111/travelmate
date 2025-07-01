@@ -12,8 +12,11 @@ class SearchViewModel: ObservableObject {
     func filteredDestinations(_ destinations: [Destination]) -> [Destination] {
         destinations.filter { destination in
             let matchCategory = selectedCategory == nil || destination.categoryId == selectedCategory?.id
-            let matchBudget = (destination.price ?? 0) * Double(selectedDuration) <= selectedBudget
-            let matchPromo = !showPromoOnly || ((destination.promo ?? 1) < 1)
+            let promo = destination.promo ?? 1
+            let price = destination.price ?? 0
+            let promoPrice = price * promo * Double(selectedDuration)
+            let matchBudget = promoPrice <= selectedBudget
+            let matchPromo = !showPromoOnly || (promo < 1)
             let matchText = searchText.isEmpty || destination.title.localizedCaseInsensitiveContains(searchText)
             let matchAvailable = availableDestinationIds.isEmpty || availableDestinationIds.contains(destination.id)
             return matchCategory && matchBudget && matchPromo && matchText && matchAvailable

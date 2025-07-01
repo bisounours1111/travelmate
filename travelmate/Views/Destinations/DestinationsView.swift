@@ -219,10 +219,22 @@ struct DestinationListItem: View {
                     Text("À partir de")
                         .font(.caption)
                         .foregroundColor(.gray)
-                    Text("\(Int(destination.price ?? 799))€")
-                        .font(.headline)
-                        .fontWeight(.bold)
-                        .foregroundColor(.blue)
+                    if let promo = destination.promo, promo < 1 {
+                        Text("\(Int(destination.price!))€")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .foregroundColor(.gray)
+                            .strikethrough()
+                        Text("\(Int(destination.price!*promo))€")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .foregroundColor(.red)
+                    } else {
+                        Text("\(Int(destination.price!))€")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .foregroundColor(.blue)
+                    }
                 }
             }
             .padding()

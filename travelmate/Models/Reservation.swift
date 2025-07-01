@@ -6,7 +6,7 @@ struct Reservation: Identifiable, Codable {
     let destinationId: String
     let startDate: String
     let endDate: String
-    let numberOfPeople: Int
+    let numberOfChamber: Int
     let totalPrice: Double
     let status: ReservationStatus
     let stripePaymentIntentId: String?
@@ -25,7 +25,7 @@ struct Reservation: Identifiable, Codable {
         case destinationId = "destination_id"
         case startDate = "start_date"
         case endDate = "end_date"
-        case numberOfPeople = "number_of_people"
+        case numberOfChamber = "number_of_chamber"
         case totalPrice = "total_price"
         case status
         case stripePaymentIntentId = "stripe_payment_intent_id"

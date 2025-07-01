@@ -64,7 +64,7 @@ struct StripePaymentView: View {
                     HStack {
                         Text("Voyageurs:")
                         Spacer()
-                        Text("\(reservation.numberOfPeople) personne\(reservation.numberOfPeople > 1 ? "s" : "")")
+                        Text("\(reservation.numberOfChamber) personne\(reservation.numberOfChamber > 1 ? "s" : "")")
                             .fontWeight(.medium)
                     }
                     

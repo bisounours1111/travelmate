@@ -7,14 +7,21 @@ struct SearchView: View {
     @StateObject private var reservationService = ReservationService()
     @StateObject private var categoryService = CategoryService()
     
-    let durees = [0, 3, 7, 14, 21, 30] // 0 = toutes durées
+    let durees = [1, 3, 7, 14, 21, 30]
     
     var minPrice: Double {
-        destinationService.destinations.compactMap { $0.price! * Double(searchViewModel.selectedDuration) }.min() ?? 0
-        
+        destinationService.destinations.compactMap {
+            let price = $0.price ?? 0
+            let promo = $0.promo ?? 1
+            return price * promo * Double(searchViewModel.selectedDuration)
+        }.min() ?? 0
     }
     var maxPrice: Double {
-        destinationService.destinations.compactMap { $0.price! * Double(searchViewModel.selectedDuration) }.max() ?? 0
+        destinationService.destinations.compactMap {
+            let price = $0.price ?? 0
+            let promo = $0.promo ?? 1
+            return price * promo * Double(searchViewModel.selectedDuration) + 1
+        }.max() ?? 0
     }
     var sliderRange: ClosedRange<Double> {
         minPrice < maxPrice ? minPrice...maxPrice : minPrice...(minPrice+1)
@@ -268,10 +275,22 @@ struct SearchResultCard: View {
                     Text("Prix total pour \(searchViewModel.selectedDuration) jour(s) :")
                         .font(.caption)
                         .foregroundColor(.gray)
-                    Text("\(Int(totalPrice))€")
-                        .font(.headline)
-                        .fontWeight(.bold)
-                        .foregroundColor(.blue)
+                    if let promo = destination.promo, promo < 1, let price = destination.price {
+                        let oldPrice = Int(price * Double(searchViewModel.selectedDuration))
+                        let newPrice = Int(price * promo * Double(searchViewModel.selectedDuration))
+                        Text("\(oldPrice)€")
+                            .strikethrough()
+                            .foregroundColor(.gray)
+                        Text("\(newPrice)€")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .foregroundColor(.red)
+                    } else {
+                        Text("\(Int(totalPrice))€")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .foregroundColor(.blue)
+                    }
                 }
                 
                 HStack {

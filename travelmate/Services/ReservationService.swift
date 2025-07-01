@@ -7,7 +7,7 @@ struct ReservationInsertData: Encodable {
     let destination_id: String
     let start_date: String
     let end_date: String
-    let number_of_people: Int
+    let number_of_chamber: Int
     let total_price: Double
     let status: String
 }
@@ -64,7 +64,7 @@ class ReservationService: ObservableObject {
         destinationId: String,
         startDate: Date,
         endDate: Date,
-        numberOfPeople: Int,
+        numberOfChamber: Int,
         totalPrice: Double
     ) async -> (success: Bool, reservationId: String?, paymentIntentId: String?) {
         // Vérification de disponibilité
@@ -80,7 +80,7 @@ class ReservationService: ObservableObject {
                 destination_id: destinationId,
                 start_date: dateFormatter.string(from: startDate),
                 end_date: dateFormatter.string(from: endDate),
-                number_of_people: numberOfPeople,
+                number_of_chamber: numberOfChamber,
                 total_price: totalPrice,
                 status: "pending"
             )
@@ -234,7 +234,7 @@ class ReservationService: ObservableObject {
               let destinationId = dict["destination_id"] as? String,
               let startDate = dict["start_date"] as? String,
               let endDate = dict["end_date"] as? String,
-              let numberOfPeople = dict["number_of_people"] as? Int,
+              let numberOfChamber = dict["number_of_chamber"] as? Int,
               let totalPrice = dict["total_price"] as? Double,
               let statusString = dict["status"] as? String,
               let status = Reservation.ReservationStatus(rawValue: statusString),
@@ -250,7 +250,7 @@ class ReservationService: ObservableObject {
             destinationId: destinationId,
             startDate: startDate,
             endDate: endDate,
-            numberOfPeople: numberOfPeople,
+            numberOfChamber: numberOfChamber,
             totalPrice: totalPrice,
             status: status,
             stripePaymentIntentId: stripePaymentIntentId,

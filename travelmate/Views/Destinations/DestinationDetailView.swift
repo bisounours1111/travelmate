@@ -322,17 +322,27 @@ struct BookingBar: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading) {
-                Text("À partir de")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-                
-                Text("\(Int(destination.price ?? 799))€")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                
-                Text("par personne")
-                    .font(.caption)
-                    .foregroundColor(.gray)
+                HStack {
+                    Text("À partir de")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                    if let promo = destination.promo, promo < 1 {
+                        Text("\(Int(destination.price!))€")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .foregroundColor(.gray)
+                            .strikethrough()
+                        Text("\(Int(destination.price!*promo))€")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .foregroundColor(.red)
+                    } else {
+                        Text("\(Int(destination.price!))€")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .foregroundColor(.blue)
+                    }
+                }
             }
             
             Spacer()
@@ -360,14 +370,21 @@ struct BookingView: View {
     @Environment(\.dismiss) var dismiss
     @State private var selectedStartDate = Date()
     @State private var selectedEndDate = Date().addingTimeInterval(7 * 24 * 60 * 60) // +7 jours
-    @State private var numberOfPeople = 2
+    @State private var numberOfChamber = 1
     @State private var isProcessing = false
     @State private var showingStripePayment = false
     @State private var createdReservation: Reservation?
     @State private var errorMessage: String?
     
-    private var pricePerPerson: Int { Int(destination.price ?? 799) }
-    private var totalPrice: Int { pricePerPerson * numberOfPeople }
+    private var pricePerChamber: Int { Int(destination.price ?? 799) * numberOfDays }
+    private var totalPrice: Int { pricePerChamber * numberOfChamber * numberOfDays }
+
+    private var numberOfDays: Int {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: selectedStartDate)
+        let end = calendar.startOfDay(for: selectedEndDate)
+        return calendar.dateComponents([.day], from: start, to: end).day ?? 0
+    }
     
     var body: some View {
         NavigationStack {
@@ -378,14 +395,14 @@ struct BookingView: View {
                 }
                 
                 Section(header: Text("Voyageurs")) {
-                    Stepper("Nombre de personnes: \(numberOfPeople)", value: $numberOfPeople, in: 1...10)
+                    Stepper("Nombre de chambres: \(numberOfChamber)", value: $numberOfChamber, in: 1...10)
                 }
                 
                 Section(header: Text("Récapitulatif")) {
                     HStack {
-                        Text("Prix par personne")
+                        Text("Prix par chambre")
                         Spacer()
-                        Text("\(pricePerPerson)€")
+                        Text("\(pricePerChamber)€")
                     }
                     
                     HStack {
@@ -484,7 +501,7 @@ struct BookingView: View {
             destinationId: destination.id,
             startDate: selectedStartDate,
             endDate: selectedEndDate,
-            numberOfPeople: numberOfPeople,
+            numberOfChamber: numberOfChamber,
             totalPrice: Double(totalPrice)
         )
         
@@ -498,7 +515,7 @@ struct BookingView: View {
                 destinationId: destination.id,
                 startDate: ISO8601DateFormatter().string(from: selectedStartDate),
                 endDate: ISO8601DateFormatter().string(from: selectedEndDate),
-                numberOfPeople: numberOfPeople,
+                numberOfChamber: numberOfChamber,
                 totalPrice: Double(totalPrice),
                 status: .pending,
                 stripePaymentIntentId: result.paymentIntentId,
