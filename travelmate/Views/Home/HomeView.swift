@@ -1,37 +1,47 @@
 import SwiftUI
 
+class SearchViewModel: ObservableObject {
+    @Published var selectedCategory: Category? = nil
+}
+
 struct HomeView: View {
     @StateObject private var authService = AuthService()
     @StateObject private var destinationService = DestinationService()
     @StateObject private var favoriteService = FavoriteService()
+    @StateObject private var searchViewModel = SearchViewModel()
+    @State private var selectedTab: Int = 0
     
     var body: some View {
-        NavigationStack {
-            TabView {
-                HomeContentView()
-                    .environmentObject(favoriteService)
-                    .tabItem {
-                        Label("Accueil", systemImage: "house.fill")
-                    }
-                
-                SearchView()
-                    .environmentObject(favoriteService)
-                    .tabItem {
-                        Label("Rechercher", systemImage: "magnifyingglass")
-                    }
-                
-                DestinationsView()
-                    .environmentObject(favoriteService)
-                    .tabItem {
-                        Label("Destinations", systemImage: "map.fill")
-                    }
-                
-                ProfileView()
-                    .environmentObject(favoriteService)
-                    .tabItem {
-                        Label("Profil", systemImage: "person.fill")
-                    }
-            }
+        TabView(selection: $selectedTab) {
+            HomeContentView(selectedTab: $selectedTab)
+                .environmentObject(favoriteService)
+                .environmentObject(searchViewModel)
+                .tabItem {
+                    Label("Accueil", systemImage: "house.fill")
+                }
+                .tag(0)
+            
+            SearchView()
+                .environmentObject(favoriteService)
+                .environmentObject(searchViewModel)
+                .tabItem {
+                    Label("Rechercher", systemImage: "magnifyingglass")
+                }
+                .tag(1)
+            
+            DestinationsView()
+                .environmentObject(favoriteService)
+                .tabItem {
+                    Label("Destinations", systemImage: "map.fill")
+                }
+                .tag(2)
+            
+            ProfileView()
+                .environmentObject(favoriteService)
+                .tabItem {
+                    Label("Profil", systemImage: "person.fill")
+                }
+                .tag(3)
         }
         .navigationBarHidden(true)
         .environmentObject(authService)
@@ -50,6 +60,8 @@ struct HomeView: View {
 struct HomeContentView: View {
     @StateObject private var destinationService = DestinationService()
     @StateObject private var categoryService = CategoryService()
+    @EnvironmentObject var searchViewModel: SearchViewModel
+    @Binding var selectedTab: Int
     
     var body: some View {
         ScrollView {
@@ -61,7 +73,7 @@ struct HomeContentView: View {
                 PopularDestinationsView(destinations: destinationService.destinations)
                 
                 // Catégories de voyage
-                TravelCategoriesView(categories: categoryService.categories, isLoading: categoryService.isLoading)
+                TravelCategoriesView(categories: categoryService.categories, isLoading: categoryService.isLoading, selectedTab: $selectedTab)
                 
                 // Offres spéciales
                 SpecialOffersView()
@@ -217,6 +229,8 @@ struct DestinationCardView: View {
 struct TravelCategoriesView: View {
     let categories: [Category]
     let isLoading: Bool
+    @Binding var selectedTab: Int
+    @EnvironmentObject var searchViewModel: SearchViewModel
     
     var body: some View {
         VStack(alignment: .leading) {
@@ -225,21 +239,34 @@ struct TravelCategoriesView: View {
                 .fontWeight(.bold)
             
             if isLoading {
-                Text("Chargement des catégories...")
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Chargement des catégories...")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+            } else if categories.isEmpty {
+                Text("Aucune catégorie disponible")
+                    .font(.caption)
                     .foregroundColor(.gray)
                     .padding()
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHGrid(rows: [
-                        GridItem(.flexible()),
-                        GridItem(.flexible())
-                    ], spacing: 15) {
-                        ForEach(categories) { category in
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: 15) {
+                    ForEach(Array(categories.prefix(4))) { category in
+                        Button(action: {
+                            searchViewModel.selectedCategory = category
+                            selectedTab = 1 // Ouvre l'onglet Recherche
+                        }) {
                             CategoryCardView(category: category)
-                                .frame(width: 160, height: 120)
                         }
+                        .buttonStyle(PlainButtonStyle())
                     }
-                    .padding(.horizontal)
                 }
             }
         }

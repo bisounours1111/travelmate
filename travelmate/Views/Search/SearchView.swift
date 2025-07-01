@@ -8,11 +8,31 @@ struct SearchView: View {
     @State private var selectedCategory = "Tous"
     @StateObject private var destinationService = DestinationService()
     @EnvironmentObject var favoriteService: FavoriteService
+    @EnvironmentObject var searchViewModel: SearchViewModel
+    @StateObject private var categoryService = CategoryService()
     
     let categories = ["Tous", "Culture", "Nature", "Plage", "Montagne", "Ville"]
     
+    var filteredDestinations: [Destination] {
+        if let selected = searchViewModel.selectedCategory {
+            return destinationService.destinations.filter { $0.categoryId == selected.id }
+        } else {
+            return destinationService.destinations
+        }
+    }
+    
     var body: some View {
         VStack {
+            // Picker catégorie en haut
+            Picker("Catégorie", selection: $searchViewModel.selectedCategory) {
+                Text("Toutes").tag(Category?.none)
+                ForEach(categoryService.categories) { category in
+                    Text(category.name).tag(Category?.some(category))
+                }
+            }
+            .pickerStyle(MenuPickerStyle())
+            .padding()
+            
             // Barre de recherche
             SearchBarView(searchText: $searchText)
                 .padding()
@@ -102,7 +122,7 @@ struct SearchView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 15) {
-                        ForEach(destinationService.destinations) { destination in
+                        ForEach(filteredDestinations) { destination in
                             NavigationLink(destination: DestinationDetailView(destination: destination)
                                 .environmentObject(favoriteService)) {
                                 SearchResultCard(destination: destination)
@@ -124,6 +144,7 @@ struct SearchView: View {
         .onAppear {
             Task {
                 await destinationService.fetchDestinations()
+                await categoryService.fetchCategories()
             }
         }
     }
