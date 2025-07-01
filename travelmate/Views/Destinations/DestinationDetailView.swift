@@ -12,6 +12,7 @@ struct DestinationDetailView: View {
     @State private var favoriteCount = 0
     @State private var reviewStats: ReviewStats?
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var activityService = ActivityService()
     
     var body: some View {
         ScrollView {
@@ -101,10 +102,10 @@ struct DestinationDetailView: View {
                     OverviewTab(destination: destination)
                         .tag(0)
                     
-                    ActivitiesTab(destination: destination)
+                    ActivitiesTab(destination: destination, activityService: activityService)
                         .tag(1)
                     
-                    MapTab(destination: destination)
+                    MapTab(destination: destination, activities: activityService.activities)
                         .tag(2)
                     
                     ReviewsTab(destination: destination)
@@ -175,103 +176,143 @@ struct OverviewTab: View {
 
 struct ActivitiesTab: View {
     let destination: Destination
-    
+    @ObservedObject var activityService: ActivityService
+
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 15) {
-                ForEach(destination.activities) { activity in
-                    ActivityCard(activity: activity)
+            if activityService.activities.isEmpty {
+                ProgressView("Chargement des activités...")
+                    .onAppear {
+                        Task {
+                            await activityService.fetchNearbyActivities(
+                                lat: destination.lat,
+                                lon: destination.long
+                            )
+                        }
+                    }
+            } else {
+                LazyVStack(spacing: 15) {
+                    ForEach(activityService.activities) { activity in
+                        ActivityCard(activity: activity)
+                    }
                 }
+                .padding()
             }
-            .padding()
         }
     }
 }
 
 struct ActivityCard: View {
-    let activity: Destination.Activity
-    
+    let activity: NearbyActivity
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Image de l'activité
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.gray.opacity(0.2))
-                .frame(height: 150)
-                .overlay(
-                    Text(activity.name)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(activity.name)
+                .font(.headline)
+            Text(activity.description)
+                .font(.subheadline)
+                .foregroundColor(.gray)
+            HStack {
+                Text(activity.category)
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                Spacer()
+                if activity.rating == 0 {
+                    Text("Sans note")
+                        .font(.caption)
                         .foregroundColor(.gray)
-                )
-            
-            VStack(alignment: .leading, spacing: 5) {
-                Text(activity.name)
-                    .font(.headline)
-                
-                Text(activity.description)
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-                    .lineLimit(2)
-                
-                HStack {
-                    Text("\(Int(activity.price))€")
-                        .fontWeight(.bold)
-                    
-                    Text("•")
-                    
-                    Text(activity.duration)
-                        .foregroundColor(.gray)
+                } else {
+                    Text("⭐️ \(String(format: "%.1f", activity.rating))")
+                        .font(.caption)
                 }
             }
-            .padding()
         }
+        .padding()
         .background(Color.white)
-        .cornerRadius(15)
-        .shadow(radius: 5)
+        .cornerRadius(12)
+        .shadow(radius: 3)
     }
 }
 
 struct MapTab: View {
     let destination: Destination
-    
-    var body: some View {
-        Map(coordinateRegion: .constant(MKCoordinateRegion(
-            center: CLLocationCoordinate2D(
-                latitude: destination.lat,
-                longitude: destination.long
-            ),
+    var activities: [NearbyActivity] = []
+
+    @State private var region: MKCoordinateRegion
+
+    init(destination: Destination, activities: [NearbyActivity] = []) {
+        self.destination = destination
+        self.activities = activities
+        _region = State(initialValue: MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: destination.lat, longitude: destination.long),
             span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
-        )))
-        .overlay(
-            VStack {
-                Spacer()
-                
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text(destination.title)
-                            .font(.headline)
-                        Text(destination.location)
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                    }
-                    
-                    Spacer()
-                    
-                    Button(action: {}) {
-                        Text("Itinéraire")
-                            .fontWeight(.medium)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 10)
-                            .background(Color.blue)
-                            .cornerRadius(8)
-                    }
+        ))
+    }
+
+    var body: some View {
+        Map(coordinateRegion: $region, annotationItems: activities) { activity in
+            MapAnnotation(coordinate: CLLocationCoordinate2D(latitude: activity.position.lat, longitude: activity.position.lng)) {
+                let icon = iconData(for: activity.category)
+                VStack(spacing: 2) {
+                    Image(systemName: icon.name)
+                        .foregroundColor(icon.color)
+                        .font(.title)
+                    Text(activity.name)
+                        .font(.caption2)
+                        .fixedSize()
                 }
-                .padding()
-                .background(Color.white)
-                .cornerRadius(15)
-                .shadow(radius: 5)
-                .padding()
             }
-        )
+        }
+        .edgesIgnoringSafeArea(.all)
+    }
+}
+
+func iconData(for category: String) -> (name: String, color: Color) {
+    switch category {
+    case "monument", "historical_landmark":
+        return ("building.columns", .gray)
+    case "museum", "gallery", "art_gallery":
+        return ("paintpalette", .purple)
+    case "park", "theme_park", "amusement_park":
+        return ("leaf.fill", .green)
+    case "tourist_attraction", "scenic_lookout":
+        return ("binoculars.fill", .orange)
+    case "church", "place_of_worship":
+        return ("cross.fill", .indigo)
+    case "cemetery":
+        return ("leaf.arrow.circlepath", .gray)
+    case "zoo", "aquarium":
+        return ("pawprint.fill", .teal)
+    case "stadium":
+        return ("sportscourt.fill", .mint)
+    case "library":
+        return ("books.vertical.fill", .brown)
+    case "movie_theater":
+        return ("film.fill", .red)
+    case "night_club", "bar":
+        return ("wineglass.fill", .pink)
+    case "casino":
+        return ("die.face.5.fill", .yellow)
+    case "bowling_alley":
+        return ("figure.bowling", .orange)
+    case "spa":
+        return ("drop.fill", .mint)
+    case "restaurant":
+        return ("fork.knife", .red)
+    case "cafe":
+        return ("cup.and.saucer.fill", .brown)
+    case "campground":
+        return ("tent.fill", .green)
+    case "point_of_interest":
+        return ("star.circle.fill", .yellow)
+    case "natural_feature", "mountain":
+        return ("mountain.2.fill", .gray)
+    case "hiking_area":
+        return ("figure.hiking", .green)
+    case "beach", "lake", "water_park":
+        return ("water.waves", .cyan)
+    default:
+        return ("mappin.circle.fill", .black)
     }
 }
 

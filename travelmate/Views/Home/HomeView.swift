@@ -188,7 +188,6 @@ struct DestinationCardView: View {
                                 .clipShape(Circle())
                         }
                         
-                        // Compteur de favoris
                         Text("\(favoriteCount)")
                             .font(.caption2)
                             .fontWeight(.bold)
@@ -352,8 +351,6 @@ struct SpecialOffersView: View {
                     }
                 }
             }
-            
-            Text("Offres trouvées : \(destinations.count)")
         }
     }
 }
