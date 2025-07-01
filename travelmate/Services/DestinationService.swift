@@ -33,24 +33,18 @@ class DestinationService: ObservableObject {
                 var decodedDestinations: [Destination] = []
                 
                 for destinationDict in jsonArray {
-                    print("Destination brute:", destinationDict)
                     if let destination = try? decodeDestination(from: destinationDict) {
                         decodedDestinations.append(destination)
-                    } else {
-                        print("Erreur de décodage pour:", destinationDict)
                     }
                 }
                 
                 self.destinations = decodedDestinations
-                print("Destinations récupérées avec succès")
-                print(decodedDestinations)
             } else {
                 throw NSError(domain: "DestinationService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Impossible de décoder les données JSON"])
             }
             
         } catch {
             errorMessage = "Erreur lors du chargement des destinations: \(error.localizedDescription)"
-            print("Erreur Supabase: \(error)")
         }
         
         isLoading = false
@@ -115,8 +109,6 @@ class DestinationService: ObservableObject {
             if let jsonDict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 return try decodeDestination(from: jsonDict)
             }
-            print("Destination récupérée avec succès")
-            print(data)
         } catch {
             print("Erreur lors de la récupération de la destination: \(error)")
         }
@@ -140,11 +132,8 @@ class DestinationService: ObservableObject {
                 var decodedDestinations: [Destination] = []
                 
                 for destinationDict in jsonArray {
-                    print("Destination brute:", destinationDict)
                     if let destination = try? decodeDestination(from: destinationDict) {
                         decodedDestinations.append(destination)
-                    } else {
-                        print("Erreur de décodage pour:", destinationDict)
                     }
                 }
                 
@@ -153,7 +142,6 @@ class DestinationService: ObservableObject {
             
         } catch {
             errorMessage = "Erreur lors de la recherche: \(error.localizedDescription)"
-            print("Erreur Supabase: \(error)")
         }
         
         isLoading = false
@@ -175,11 +163,8 @@ class DestinationService: ObservableObject {
                 var decodedDestinations: [Destination] = []
                 
                 for destinationDict in jsonArray {
-                    print("Destination brute:", destinationDict)
                     if let destination = try? decodeDestination(from: destinationDict) {
                         decodedDestinations.append(destination)
-                    } else {
-                        print("Erreur de décodage pour:", destinationDict)
                     }
                 }
                 
@@ -188,7 +173,6 @@ class DestinationService: ObservableObject {
             
         } catch {
             errorMessage = "Erreur lors du filtrage par catégorie: \(error.localizedDescription)"
-            print("Erreur Supabase: \(error)")
         }
         
         isLoading = false
@@ -210,11 +194,8 @@ class DestinationService: ObservableObject {
                 var decodedDestinations: [Destination] = []
                 
                 for destinationDict in jsonArray {
-                    print("Destination brute:", destinationDict)
                     if let destination = try? decodeDestination(from: destinationDict) {
                         decodedDestinations.append(destination)
-                    } else {
-                        print("Erreur de décodage pour:", destinationDict)
                     }
                 }
                 
@@ -223,7 +204,6 @@ class DestinationService: ObservableObject {
             
         } catch {
             errorMessage = "Erreur lors du filtrage par type: \(error.localizedDescription)"
-            print("Erreur Supabase: \(error)")
         }
         
         isLoading = false

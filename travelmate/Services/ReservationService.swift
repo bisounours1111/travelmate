@@ -54,7 +54,6 @@ class ReservationService: ObservableObject {
             
         } catch {
             errorMessage = "Erreur lors du chargement des réservations: \(error.localizedDescription)"
-            print("Erreur Supabase: \(error)")
         }
         
         isLoading = false
@@ -68,9 +67,14 @@ class ReservationService: ObservableObject {
         numberOfPeople: Int,
         totalPrice: Double
     ) async -> (success: Bool, reservationId: String?, paymentIntentId: String?) {
+        // Vérification de disponibilité
+        let available = await isDestinationAvailable(destinationId: destinationId, startDate: startDate, endDate: endDate)
+        if !available {
+            errorMessage = "La destination est déjà réservée sur cette période. Veuillez choisir d'autres dates."
+            return (false, nil, nil)
+        }
         do {
             let dateFormatter = ISO8601DateFormatter()
-            
             let reservationData = ReservationInsertData(
                 user_id: userId,
                 destination_id: destinationId,
@@ -80,32 +84,25 @@ class ReservationService: ObservableObject {
                 total_price: totalPrice,
                 status: "pending"
             )
-            
             let response = try await supabase
                 .from("reservations")
                 .insert(reservationData)
                 .select()
                 .execute()
-            
             // Extraire l'ID de la réservation créée
             let reservationId = extractReservationId(from: response)
-            
             // Créer le Payment Intent Stripe
             let paymentIntentResponse = try await createStripePaymentIntent(amount: Int(totalPrice * 100))
-            
             if let paymentIntentId = paymentIntentResponse["id"] as? String {
                 // Mettre à jour la réservation avec l'ID du Payment Intent
                 if let reservationId = reservationId {
                     try await updateReservationPaymentIntent(reservationId: reservationId, paymentIntentId: paymentIntentId)
                 }
-                
                 // Recharger les réservations
                 await fetchReservations(for: userId)
                 return (true, reservationId, paymentIntentId)
             }
-            
             return (false, reservationId, nil)
-            
         } catch {
             errorMessage = "Erreur lors de la création de la réservation: \(error.localizedDescription)"
             return (false, nil, nil)
@@ -259,5 +256,33 @@ class ReservationService: ObservableObject {
             stripePaymentIntentId: stripePaymentIntentId,
             createdAt: createdAt
         )
+    }
+    
+    // Vérifie si une destination est disponible sur une période donnée
+    func isDestinationAvailable(destinationId: String, startDate: Date, endDate: Date) async -> Bool {
+        do {
+            print(destinationId, startDate, endDate)
+            let dateFormatter = ISO8601DateFormatter()
+            let start = dateFormatter.string(from: startDate)
+            let end = dateFormatter.string(from: endDate)
+            let response = try await supabase
+                .from("reservations")
+                .select()
+                .eq("destination_id", value: destinationId)
+                .in("status", value: ["pending", "confirmed"])
+                .or("and(start_date.lte.\(end),end_date.gte.\(start))")
+                .execute()
+            let data = response.data
+            print("Vérification disponibilité : start=\(start), end=\(end)")
+            print("Réponse brute : \(String(data: data, encoding: .utf8) ?? "nil")")
+            if let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]], !jsonArray.isEmpty {
+                // Il y a au moins une réservation qui chevauche
+                return false
+            }
+            return true
+        } catch {
+            print("Erreur lors de la vérification de disponibilité: \(error)")
+            return false // Par sécurité, on bloque si erreur
+        }
     }
 } 

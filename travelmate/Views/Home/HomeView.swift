@@ -1,7 +1,45 @@
 import SwiftUI
 
 class SearchViewModel: ObservableObject {
+    @Published var searchText: String = ""
     @Published var selectedCategory: Category? = nil
+    @Published var selectedBudget: Double = 5000
+    @Published var selectedDuration: Int = 1 // 1 par défaut
+    @Published var selectedDate: Date = Date()
+    @Published var showPromoOnly: Bool = false
+    @Published var availableDestinationIds: Set<String> = []
+
+    func filteredDestinations(_ destinations: [Destination]) -> [Destination] {
+        destinations.filter { destination in
+            let matchCategory = selectedCategory == nil || destination.categoryId == selectedCategory?.id
+            let matchBudget = (destination.price ?? 0) * Double(selectedDuration) <= selectedBudget
+            let matchPromo = !showPromoOnly || ((destination.promo ?? 1) < 1)
+            let matchText = searchText.isEmpty || destination.title.localizedCaseInsensitiveContains(searchText)
+            let matchAvailable = availableDestinationIds.isEmpty || availableDestinationIds.contains(destination.id)
+            return matchCategory && matchBudget && matchPromo && matchText && matchAvailable
+        }
+    }
+
+    // Met à jour la liste des destinations disponibles pour la période sélectionnée
+    func updateAvailableDestinations(destinations: [Destination], reservationService: ReservationService) async {
+        var availableIds = Set<String>()
+        await withTaskGroup(of: (String, Bool).self) { group in
+            for destination in destinations {
+                group.addTask {
+                    let isAvailable = await reservationService.isDestinationAvailable(destinationId: destination.id, startDate: self.selectedDate, endDate: Calendar.current.date(byAdding: .day, value: self.selectedDuration, to: self.selectedDate) ?? self.selectedDate)
+                    return (destination.id, isAvailable)
+                }
+            }
+            for await (id, isAvailable) in group {
+                if isAvailable {
+                    availableIds.insert(id)
+                }
+            }
+        }
+        DispatchQueue.main.async {
+            self.availableDestinationIds = availableIds
+        }
+    }
 }
 
 struct HomeView: View {
@@ -24,6 +62,7 @@ struct HomeView: View {
             SearchView()
                 .environmentObject(favoriteService)
                 .environmentObject(searchViewModel)
+                .environmentObject(destinationService)
                 .tabItem {
                     Label("Rechercher", systemImage: "magnifyingglass")
                 }
