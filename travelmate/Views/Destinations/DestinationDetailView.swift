@@ -17,77 +17,7 @@ struct DestinationDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Informations principales en haut
-                VStack(alignment: .leading, spacing: 15) {
-                    HStack {
-                        Spacer(minLength: 0)
-                        Spacer()
-                        
-                        // Bouton favori avec compteur
-                        if let currentUser = authService.currentUser {
-                            VStack(spacing: 4) {
-                                Button(action: {
-                                    Task {
-                                        await favoriteService.toggleFavorite(userId: currentUser.id, destinationId: destination.id)
-                                        // Mettre à jour le compteur après le toggle
-                                        favoriteCount = await favoriteService.getFavoriteCount(for: destination.id)
-                                    }
-                                }) {
-                                    Image(systemName: favoriteService.isFavorite(userId: currentUser.id, destinationId: destination.id) ? "heart.fill" : "heart")
-                                        .foregroundColor(favoriteService.isFavorite(userId: currentUser.id, destinationId: destination.id) ? .red : .gray)
-                                        .font(.title2)
-                                }
-                                
-                                // Compteur de favoris
-                                Text("\(favoriteCount)")
-                                    .font(.caption)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.gray)
-                            }
-                        }
-                    }
-                    
-                    HStack {
-                        Text(destination.type)
-                            .font(.caption)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.blue.opacity(0.1))
-                            .cornerRadius(8)
-                        
-                        Spacer()
-                        
-                        // Statistiques d'avis réelles
-                        HStack(spacing: 4) {
-                            Image(systemName: "star.fill")
-                                .foregroundColor(.yellow)
-                            Text(String(format: "%.1f", reviewStats?.averageRating ?? destination.rating))
-                            Text("(\(reviewStats?.reviewCount ?? 0) avis)")
-                                .foregroundColor(.gray)
-                        }
-                    }
-                    
-                    Text(destination.description)
-                        .font(.body)
-                        .foregroundColor(.gray)
-                }
-                .padding(.horizontal)
-                .padding(.top, 60)
-                
-                // Carrousel d'images en dessous
-                if !destination.imageURLs.isEmpty {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Photos")
-                            .font(.headline)
-                            .fontWeight(.bold)
-                            .padding(.horizontal)
-                        
-                        ImageCarousel(imageURLs: destination.imageURLs)
-                            .frame(height: 250)
-                    }
-                }
-                
-                // Sélecteur d'onglets
+                // Onglets tout en haut
                 Picker("Section", selection: $selectedTab) {
                     Text("Aperçu").tag(0)
                     Text("Activités").tag(1)
@@ -96,22 +26,21 @@ struct DestinationDetailView: View {
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .padding(.horizontal)
-                
+                .padding(.top, 150)
+
                 // Contenu des onglets
                 TabView(selection: $selectedTab) {
                     OverviewTab(destination: destination)
                         .tag(0)
-                    
+                        .padding()
                     ActivitiesTab(destination: destination, activityService: activityService)
                         .tag(1)
-                    
                     MapTab(destination: destination, activities: activityService.activities)
                         .tag(2)
-                    
                     ReviewsTab(destination: destination)
                         .tag(3)
                 }
-                .frame(height: 400)
+                .frame(height: 550)
                 .tabViewStyle(.page(indexDisplayMode: .never))
             }
         }
@@ -147,29 +76,69 @@ struct DestinationDetailView: View {
 
 struct OverviewTab: View {
     let destination: Destination
+    @State private var categoryName: String = "Chargement..."
+    @StateObject private var categoryService = CategoryService()
     
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                // Type
-                InfoSection(title: "Type", content: destination.type)
-                
-                // Localisation
-                InfoSection(title: "Localisation", content: destination.location)
-                
-                // Climat
-                InfoSection(title: "Climat", content: destination.climate)
-                
-                // Culture
-                InfoSection(title: "Culture", content: destination.culture)
-                
-                // Meilleure période
-                InfoSection(title: "Meilleure période", content: "Avril à Octobre")
-                
-                // Informations pratiques
-                InfoSection(title: "Informations pratiques", content: "Visa requis pour les séjours de plus de 90 jours")
+            VStack(alignment: .leading, spacing: 22) {
+                // Description
+                Text(destination.description)
+                    .font(.body)
+                    .foregroundColor(.gray)
+                    .padding(.horizontal)
+
+                // Carrousel d'images
+                if !destination.imageURLs.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Photos")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .padding(.horizontal)
+                        ZStack {
+                            Color.white
+                                .cornerRadius(18)
+                                .shadow(color: Color.black.opacity(0.10), radius: 8, x: 0, y: 4)
+                            ImageCarousel(imageURLs: destination.imageURLs)
+                                .clipShape(RoundedRectangle(cornerRadius: 18))
+                        }
+                        .frame(height: 250)
+                        .padding(.horizontal)
+                    }
+                }
+
+                // Sections d'infos
+                VStack(spacing: 14) {
+                    InfoSection(title: "Localisation", content: destination.location)
+                    InfoSection(title: "Catégorie", content: categoryName)
+                    // Affichage du prix avec promo
+                    if let price = destination.price {
+                        if let promo = destination.promo, promo < 1 {
+                            let promoPrice = Int(Double(price) * promo)
+                            let originalPrice = Int(price)
+                            InfoSection(title: "Prix", content: "\(originalPrice)€  →  \(promoPrice)€ (-\(Int((1-promo)*100))%)")
+                        } else {
+                            InfoSection(title: "Prix", content: "\(Int(price))€")
+                        }
+                    }
+                    if let notes = destination.notes, !notes.isEmpty {
+                        InfoSection(title: "Notes", content: notes)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 20)
+                .background(Color.clear)
             }
-            .padding()
+            .padding(.top, 16)
+        }
+        .onAppear {
+            Task {
+                if let id = destination.categoryId {
+                    categoryName = await CategoryService().getCategoryName(for: id)
+                } else {
+                    categoryName = "Aucune catégorie"
+                }
+            }
         }
     }
 }
@@ -332,11 +301,17 @@ struct InfoSection: View {
         VStack(alignment: .leading, spacing: 5) {
             Text(title)
                 .font(.headline)
-            
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
             Text(content)
                 .font(.body)
                 .foregroundColor(.gray)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(14)
+        .shadow(color: Color.black.opacity(0.04), radius: 3, x: 0, y: 2)
     }
 }
 

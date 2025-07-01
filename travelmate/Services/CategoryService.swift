@@ -83,4 +83,9 @@ class CategoryService: ObservableObject {
         
         return nil
     }
+
+    func getCategoryName(for id: String) async -> String {
+        let category = await fetchCategory(by: id)
+        return category?.name ?? "Aucune catégorie"
+    }
 } 

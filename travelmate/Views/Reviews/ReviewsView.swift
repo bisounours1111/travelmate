@@ -8,26 +8,43 @@ struct ReviewsView: View {
     @State private var reviewStats: ReviewStats?
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // En-tête avec statistiques
-            ReviewsHeaderView(
-                reviewStats: reviewStats,
-                onAddReview: {
-                    showingAddReview = true
+        ZStack {
+            Color(.systemGray6).ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 20) {
+                // Header résumé
+                ReviewsHeaderView(
+                    reviewStats: reviewStats,
+                    onAddReview: {
+                        showingAddReview = true
+                    }
+                )
+                .padding()
+                .background(Color.white)
+                .cornerRadius(18)
+                .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
+                .padding(.horizontal)
+                .padding(.top, 10)
+
+                // Liste scrollable des avis
+                if reviewService.isLoading {
+                    ProgressView("Chargement des avis...")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if reviewService.reviews.isEmpty {
+                    ScrollView {
+                        EmptyReviewsView()
+                            .padding(.top, 60)
+                    }
+                } else {
+                    ScrollView {
+                        ReviewsListView(reviews: reviewService.reviews)
+                            .padding(.top, 10)
+                            .padding(.horizontal)
+                    }
+                    .frame(maxHeight: 400)
                 }
-            )
-            
-            // Liste des avis
-            if reviewService.isLoading {
-                ProgressView("Chargement des avis...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if reviewService.reviews.isEmpty {
-                EmptyReviewsView()
-            } else {
-                ReviewsListView(reviews: reviewService.reviews)
+                Spacer()
             }
         }
-        .padding()
         .navigationTitle("Avis")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -193,7 +210,7 @@ struct ReviewCardView: View {
             }
         }
         .padding()
-        .background(Color(.systemGray6))
+        .background(Color.white)
         .cornerRadius(12)
     }
 }
@@ -270,7 +287,7 @@ struct AddReviewView: View {
                     TextEditor(text: $comment)
                         .frame(minHeight: 100)
                         .padding(8)
-                        .background(Color(.systemGray6))
+                        .background(Color(.white))
                         .cornerRadius(8)
                 }
                 
