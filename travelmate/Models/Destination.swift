@@ -11,6 +11,7 @@ struct Destination: Identifiable, Codable {
     let categoryId: String?
     let imagePaths: [String]?
     let price: Double?
+    let promo: Double?
     
     // Propriétés calculées pour la compatibilité avec l'interface existante
     var name: String { title }
@@ -89,6 +90,7 @@ struct Destination: Identifiable, Codable {
         case categoryId = "category_id"
         case imagePaths = "image_path"
         case price
+        case promo
     }
     
     // Propriété calculée pour la compatibilité avec l'interface existante

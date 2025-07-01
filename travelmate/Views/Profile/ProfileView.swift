@@ -399,7 +399,7 @@ struct FavoritesView: View {
     
     private func getDestination(for destinationId: String) -> Destination {
         return destinationService.destinations.first { $0.id == destinationId } ?? 
-        Destination(id: "", title: "", type: "", location: "", notes: nil, lat: 0, long: 0, categoryId: nil, imagePaths: nil, price: 0)
+        Destination(id: "", title: "", type: "", location: "", notes: nil, lat: 0, long: 0, categoryId: nil, imagePaths: nil, price: 0, promo: 1)
     }
 }
 

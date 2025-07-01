@@ -76,7 +76,7 @@ struct HomeContentView: View {
                 TravelCategoriesView(categories: categoryService.categories, isLoading: categoryService.isLoading, selectedTab: $selectedTab)
                 
                 // Offres spéciales
-                SpecialOffersView()
+                SpecialOffersView(destinations: destinationService.destinations)
             }
             .padding()
         }
@@ -321,34 +321,118 @@ struct CategoryCardView: View {
 }
 
 struct SpecialOffersView: View {
+    let destinations: [Destination]
+    @EnvironmentObject var favoriteService: FavoriteService
+    
+    var specialOffers: [Destination] {
+        destinations.filter { ($0.promo ?? 1) < 1 }
+    }
+    
     var body: some View {
         VStack(alignment: .leading) {
             Text("Offres spéciales")
                 .font(.title2)
                 .fontWeight(.bold)
             
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 15) {
-                    ForEach(0..<3) { _ in
-                        OfferCardView()
+            if specialOffers.isEmpty {
+                Text("Aucune offre spéciale en ce moment")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                    .padding()
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 15) {
+                        ForEach(specialOffers) { destination in
+                            NavigationLink(destination: DestinationDetailView(destination: destination)
+                                .environmentObject(favoriteService)) {
+                                SpecialOfferCardView(destination: destination)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
                     }
                 }
             }
+            
+            Text("Offres trouvées : \(destinations.count)")
         }
     }
 }
 
-struct OfferCardView: View {
+struct SpecialOfferCardView: View {
+    let destination: Destination
+    
+    var originalPrice: Double {
+        destination.price ?? 799
+    }
+    var promo: Double {
+        destination.promo ?? 1
+    }
+    var discountedPrice: Double {
+        (destination.price ?? 799) * (destination.promo ?? 1)
+    }
+    var discountPercent: Int {
+        Int((1 - (destination.promo ?? 1)) * 100)
+    }
+    
     var body: some View {
-        VStack {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.red.opacity(0.2))
-                .frame(width: 250, height: 150)
-                .overlay(
-                    Text("Offre spéciale")
-                        .foregroundColor(.red)
-                )
+        VStack(alignment: .leading, spacing: 8) {
+            // Image de la destination
+            if !destination.imageURLs.isEmpty {
+                AsyncImage(url: URL(string: destination.imageURLs[0])) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 250, height: 150)
+                        .clipped()
+                } placeholder: {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.red.opacity(0.2))
+                        .frame(width: 250, height: 150)
+                        .overlay(
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                        )
+                }
+                .cornerRadius(10)
+            } else {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.red.opacity(0.2))
+                    .frame(width: 250, height: 150)
+                    .overlay(
+                        Text(destination.title)
+                            .foregroundColor(.gray)
+                    )
+            }
+            
+            Text(destination.title)
+                .font(.headline)
+                .fontWeight(.bold)
+                .lineLimit(1)
+            
+            HStack(spacing: 8) {
+                Text("\(Int(originalPrice))€")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                    .strikethrough()
+                Text("\(Int(discountedPrice))€")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(.red)
+                if discountPercent > 0 {
+                    Text("-\(discountPercent)%")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Color.red)
+                        .cornerRadius(8)
+                }
+            }
         }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(15)
     }
 }
 

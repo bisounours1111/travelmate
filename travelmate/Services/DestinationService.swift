@@ -33,12 +33,17 @@ class DestinationService: ObservableObject {
                 var decodedDestinations: [Destination] = []
                 
                 for destinationDict in jsonArray {
+                    print("Destination brute:", destinationDict)
                     if let destination = try? decodeDestination(from: destinationDict) {
                         decodedDestinations.append(destination)
+                    } else {
+                        print("Erreur de décodage pour:", destinationDict)
                     }
                 }
                 
                 self.destinations = decodedDestinations
+                print("Destinations récupérées avec succès")
+                print(decodedDestinations)
             } else {
                 throw NSError(domain: "DestinationService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Impossible de décoder les données JSON"])
             }
@@ -52,20 +57,36 @@ class DestinationService: ObservableObject {
     }
     
     private func decodeDestination(from dict: [String: Any]) throws -> Destination {
-        guard let id = dict["id"] as? String,
+        // Conversion UUID -> String
+        let id: String
+        if let idString = dict["id"] as? String {
+            id = idString
+        } else if let idUUID = dict["id"] as? UUID {
+            id = idUUID.uuidString
+        } else {
+            id = String(describing: dict["id"] ?? "")
+        }
+
+        guard !id.isEmpty,
               let title = dict["title"] as? String,
-              let type = dict["type"] as? String,
               let location = dict["location"] as? String,
               let lat = dict["lat"] as? Double,
               let lng = dict["lng"] as? Double else {
             throw NSError(domain: "DestinationService", code: 2, userInfo: [NSLocalizedDescriptionKey: "Données de destination incomplètes"])
         }
-        
+
+        let type = dict["type"] as? String ?? "" // Si jamais le champ est optionnel
         let notes = dict["notes"] as? String
-        let categoryId = dict["category_id"] as? String
+        let categoryId: String? = {
+            if let cat = dict["category_id"] as? String { return cat }
+            if let cat = dict["category_id"] as? UUID { return cat.uuidString }
+            if let cat = dict["category_id"] { return String(describing: cat) }
+            return nil
+        }()
         let imagePaths = dict["image_path"] as? [String]
         let price = dict["price"] as? Double
-        
+        let promo = dict["promo"] as? Double
+
         return Destination(
             id: id,
             title: title,
@@ -76,7 +97,8 @@ class DestinationService: ObservableObject {
             long: lng,
             categoryId: categoryId,
             imagePaths: imagePaths,
-            price: price
+            price: price,
+            promo: promo
         )
     }
     
@@ -93,7 +115,8 @@ class DestinationService: ObservableObject {
             if let jsonDict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 return try decodeDestination(from: jsonDict)
             }
-            
+            print("Destination récupérée avec succès")
+            print(data)
         } catch {
             print("Erreur lors de la récupération de la destination: \(error)")
         }
@@ -117,8 +140,11 @@ class DestinationService: ObservableObject {
                 var decodedDestinations: [Destination] = []
                 
                 for destinationDict in jsonArray {
+                    print("Destination brute:", destinationDict)
                     if let destination = try? decodeDestination(from: destinationDict) {
                         decodedDestinations.append(destination)
+                    } else {
+                        print("Erreur de décodage pour:", destinationDict)
                     }
                 }
                 
@@ -149,8 +175,11 @@ class DestinationService: ObservableObject {
                 var decodedDestinations: [Destination] = []
                 
                 for destinationDict in jsonArray {
+                    print("Destination brute:", destinationDict)
                     if let destination = try? decodeDestination(from: destinationDict) {
                         decodedDestinations.append(destination)
+                    } else {
+                        print("Erreur de décodage pour:", destinationDict)
                     }
                 }
                 
@@ -181,8 +210,11 @@ class DestinationService: ObservableObject {
                 var decodedDestinations: [Destination] = []
                 
                 for destinationDict in jsonArray {
+                    print("Destination brute:", destinationDict)
                     if let destination = try? decodeDestination(from: destinationDict) {
                         decodedDestinations.append(destination)
+                    } else {
+                        print("Erreur de décodage pour:", destinationDict)
                     }
                 }
                 
