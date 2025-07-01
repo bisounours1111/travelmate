@@ -377,7 +377,7 @@ struct BookingView: View {
     @State private var errorMessage: String?
     
     private var pricePerChamber: Int { Int(destination.price ?? 799) * numberOfDays }
-    private var totalPrice: Int { pricePerChamber * numberOfChamber * numberOfDays }
+    private var totalPrice: Int { pricePerChamber * numberOfChamber }
 
     private var numberOfDays: Int {
         let calendar = Calendar.current

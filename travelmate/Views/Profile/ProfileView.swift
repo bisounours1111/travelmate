@@ -41,11 +41,29 @@ struct ProfileView: View {
             }
         }
         .onAppear {
-            if let currentUser = authService.currentUser {
-                Task {
-                    await favoriteService.fetchFavorites(for: currentUser.id)
-                    await reservationService.fetchReservations(for: currentUser.id)
-                }
+            loadUserData()
+        }
+        .onChange(of: selectedTab) { newTab in
+            // Recharger les données quand on change d'onglet
+            if newTab == 0 { // Onglet Réservations
+                loadReservations()
+            }
+        }
+    }
+    
+    private func loadUserData() {
+        if let currentUser = authService.currentUser {
+            Task {
+                await favoriteService.fetchFavorites(for: currentUser.id)
+                await reservationService.fetchReservations(for: currentUser.id)
+            }
+        }
+    }
+    
+    private func loadReservations() {
+        if let currentUser = authService.currentUser {
+            Task {
+                await reservationService.fetchReservations(for: currentUser.id)
             }
         }
     }
@@ -110,7 +128,7 @@ struct StatisticView: View {
 }
 
 struct ReservationsView: View {
-    let reservationService: ReservationService
+    @ObservedObject var reservationService: ReservationService
     let authService: AuthService
     @State private var selectedStatusFilter: ReservationStatusFilter = .all
     
@@ -165,6 +183,15 @@ struct ReservationsView: View {
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.center)
                         .padding()
+                    
+                    Button("Réessayer") {
+                        if let currentUser = authService.currentUser {
+                            Task {
+                                await reservationService.fetchReservations(for: currentUser.id)
+                            }
+                        }
+                    }
+                    .foregroundColor(.blue)
                 }
                 Spacer()
             } else if filteredReservations.isEmpty {
@@ -184,10 +211,22 @@ struct ReservationsView: View {
                 ScrollView {
                     LazyVStack(spacing: 15) {
                         ForEach(filteredReservations) { reservation in
-                            ReservationCard(reservation: reservation)
+                            ReservationCard(
+                                reservation: reservation,
+                                reservationService: reservationService,
+                                authService: authService
+                            )
                         }
                     }
                     .padding()
+                }
+            }
+        }
+        .onAppear {
+            // Charger les réservations quand la vue apparaît
+            if let currentUser = authService.currentUser {
+                Task {
+                    await reservationService.fetchReservations(for: currentUser.id)
                 }
             }
         }
@@ -196,11 +235,12 @@ struct ReservationsView: View {
 
 struct ReservationCard: View {
     let reservation: Reservation
+    @ObservedObject var reservationService: ReservationService
+    let authService: AuthService
     @StateObject private var destinationService = DestinationService()
-    @StateObject private var reservationService = ReservationService()
-    @EnvironmentObject var authService: AuthService
     @State private var destination: Destination?
     @State private var showingCancelAlert = false
+    @State private var showingModifyBooking = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -257,11 +297,12 @@ struct ReservationCard: View {
                 
                 HStack {
                     Text("Statut:")
-                    Text(reservation.status.rawValue.capitalized)
+                    Text(statusText(reservation.status))
                         .fontWeight(.medium)
                         .foregroundColor(statusColor(reservation.status))
                 }
                 
+                // Boutons d'action
                 HStack {
                     Button(action: {}) {
                         Text("Voir les détails")
@@ -276,6 +317,20 @@ struct ReservationCard: View {
                     Spacer()
                     
                     if reservation.status == .pending {
+                        // Bouton Payer
+                        Button(action: {
+                            showingModifyBooking = true
+                        }) {
+                            Text("Payer")
+                                .fontWeight(.medium)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 10)
+                                .background(Color.green)
+                                .cornerRadius(8)
+                        }
+                        
+                        // Bouton Annuler
                         Button(action: {
                             showingCancelAlert = true
                         }) {
@@ -305,15 +360,28 @@ struct ReservationCard: View {
             Button("Confirmer", role: .destructive) {
                 Task {
                     if let currentUser = authService.currentUser {
-                        await reservationService.cancelReservation(
+                        let success = await reservationService.cancelReservation(
                             reservationId: reservation.id,
                             userId: currentUser.id
                         )
+                        if success {
+                            // La mise à jour se fait automatiquement via @ObservedObject
+                        }
                     }
                 }
             }
         } message: {
             Text("Êtes-vous sûr de vouloir annuler cette réservation ? Cette action est irréversible.")
+        }
+        .sheet(isPresented: $showingModifyBooking) {
+            if let destination = destination {
+                ModifyBookingView(
+                    destination: destination,
+                    reservation: reservation,
+                    reservationService: reservationService,
+                    authService: authService
+                )
+            }
         }
     }
     
@@ -338,6 +406,19 @@ struct ReservationCard: View {
             return .red
         case .completed:
             return .blue
+        }
+    }
+    
+    private func statusText(_ status: Reservation.ReservationStatus) -> String {
+        switch status {
+        case .pending:
+            return "En attente"
+        case .confirmed:
+            return "Confirmée"
+        case .cancelled:
+            return "Annulée"
+        case .completed:
+            return "Terminée"
         }
     }
 }
@@ -496,6 +577,7 @@ struct SettingsView: View {
     @State private var language = "Français"
     @State private var showingLogoutAlert = false
     @State private var shouldNavigate = false
+    
     var body: some View {
         List {
             Section(header: Text("Préférences")) {
@@ -561,8 +643,6 @@ struct SettingsView: View {
         }
     }
 }
-
-
 
 #Preview {
     ProfileView()
@@ -678,5 +758,194 @@ struct PaymentView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Vue de modification de réservation
+struct ModifyBookingView: View {
+    let destination: Destination
+    let reservation: Reservation
+    @ObservedObject var reservationService: ReservationService
+    let authService: AuthService
+    @Environment(\.dismiss) var dismiss
+    @State private var isProcessing = false
+    @State private var showingStripePayment = false
+    @State private var errorMessage: String?
+    
+    private var pricePerNight: Int { Int(destination.price ?? 799) }
+    private var numberOfDays: Int {
+        let formatter = ISO8601DateFormatter()
+        guard let startDate = formatter.date(from: reservation.startDate),
+              let endDate = formatter.date(from: reservation.endDate) else {
+            return 1
+        }
+        let calendar = Calendar.current
+        return max(1, calendar.dateComponents([.day], from: startDate, to: endDate).day ?? 1)
+    }
+    private var totalPrice: Int { Int(reservation.totalPrice) }
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Informations de la destination
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(destination.title)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        Text("Finaliser votre réservation")
+                            .font(.headline)
+                            .foregroundColor(.blue)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(15)
+                    
+                    // Détails de la réservation
+                    VStack(alignment: .leading, spacing: 15) {
+                        Text("Détails de votre réservation")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                        
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text("Du")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                Text(formatDate(reservation.startDate))
+                                    .font(.subheadline)
+                            }
+                            
+                            Spacer()
+                            
+                            VStack(alignment: .trailing) {
+                                Text("Au")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                Text(formatDate(reservation.endDate))
+                                    .font(.subheadline)
+                            }
+                        }
+                        
+                        HStack {
+                            Text("Nombre de chambres:")
+                            Spacer()
+                            Text("\(reservation.numberOfChamber)")
+                                .fontWeight(.medium)
+                        }
+                        
+                        HStack {
+                            Text("Nombre de nuits:")
+                            Spacer()
+                            Text("\(numberOfDays)")
+                                .fontWeight(.medium)
+                        }
+                    }
+                    .padding()
+                    .background(Color.white)
+                    .cornerRadius(15)
+                    .shadow(radius: 5)
+                    
+                    // Récapitulatif des prix
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Récapitulatif")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                        
+                        HStack {
+                            Text("\(pricePerNight)€ × \(numberOfDays) nuit\(numberOfDays > 1 ? "s" : "") × \(reservation.numberOfChamber) chambre\(reservation.numberOfChamber > 1 ? "s" : "")")
+                            Spacer()
+                            Text("\(totalPrice)€")
+                                .fontWeight(.bold)
+                        }
+                        .font(.subheadline)
+                        
+                        Divider()
+                        
+                        HStack {
+                            Text("Total à payer")
+                                .font(.title3)
+                                .fontWeight(.bold)
+                            Spacer()
+                            Text("\(totalPrice)€")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.blue)
+                        }
+                    }
+                    .padding()
+                    .background(Color.white)
+                    .cornerRadius(15)
+                    .shadow(radius: 5)
+                    
+                    if let errorMessage = errorMessage {
+                        Text(errorMessage)
+                            .foregroundColor(.red)
+                            .padding()
+                            .background(Color.red.opacity(0.1))
+                            .cornerRadius(10)
+                    }
+                    
+                    // Bouton de paiement
+                    Button(action: {
+                        showingStripePayment = true
+                    }) {
+                        HStack {
+                            Image(systemName: "creditcard.fill")
+                            Text("Procéder au paiement")
+                        }
+                        .fontWeight(.medium)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .cornerRadius(15)
+                    }
+                    .disabled(isProcessing)
+                    
+                    Spacer()
+                }
+                .padding()
+            }
+            .navigationTitle("Paiement")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Annuler") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showingStripePayment) {
+            StripePaymentView(
+                reservation: reservation,
+                destination: destination,
+                onSuccess: {
+                    dismiss()
+                },
+                onFailure: { error in
+                    errorMessage = error
+                    showingStripePayment = false
+                },
+                onReservationConfirmed: {
+                    dismiss()
+                }
+            )
+            .environmentObject(authService)
+        }
+    }
+    
+    private func formatDate(_ dateString: String) -> String {
+        let formatter = ISO8601DateFormatter()
+        let displayFormatter = DateFormatter()
+        displayFormatter.dateStyle = .medium
+        
+        if let date = formatter.date(from: dateString) {
+            return displayFormatter.string(from: date)
+        }
+        return dateString
     }
 } 
