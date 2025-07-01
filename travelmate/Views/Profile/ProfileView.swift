@@ -495,7 +495,7 @@ struct SettingsView: View {
     @State private var darkModeEnabled = false
     @State private var language = "Français"
     @State private var showingLogoutAlert = false
-    
+    @State private var shouldNavigate = false
     var body: some View {
         List {
             Section(header: Text("Préférences")) {
@@ -549,13 +549,20 @@ struct SettingsView: View {
             Button("Se déconnecter", role: .destructive) {
                 Task {
                     try? await authService.signOut()
+                    shouldNavigate = true
                 }
             }
         } message: {
             Text("Êtes-vous sûr de vouloir vous déconnecter ?")
         }
+
+        NavigationLink(destination: SignInView(), isActive: $shouldNavigate) {
+            EmptyView()
+        }
     }
 }
+
+
 
 #Preview {
     ProfileView()

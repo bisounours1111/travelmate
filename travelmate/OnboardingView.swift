@@ -51,7 +51,7 @@ struct OnboardingView: View {
                         }
                     }
                     .padding(.bottom, 16)
-                    NavigationLink(destination: HomeView()) {
+                    NavigationLink(destination: SignInView()) {
                         VStack {
                             Image(systemName: "arrow.right")
                                 .resizable()

@@ -19,7 +19,7 @@ class ActivityService: ObservableObject {
     @Published var activities: [NearbyActivity] = []
 
     func fetchNearbyActivities(lat: Double, lon: Double, radius: Double = 1000) async {
-        guard let url = URL(string: "http://localhost:8000/api/activities/nearby?lat=\(lat)&lon=\(lon)&radius=\(radius)") else { return }
+        guard let url = URL(string: "http://172.20.10.4:8000/api/activities/nearby?lat=\(lat)&lon=\(lon)&radius=\(radius)") else { return }
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             let decoded = try JSONDecoder().decode([NearbyActivity].self, from: data)

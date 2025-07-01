@@ -5,10 +5,10 @@ struct BackendConfig {
     static let baseURL: String = {
         #if DEBUG
         // URL pour le développement local
-        return "http://localhost:8000"
+        return "http://172.20.10.4:8000"
         #else
         // URL pour la production (à remplacer par votre URL de production)
-        return "http://localhost:8000"
+        return "http://172.20.10.4:8000"
         #endif
     }()
     

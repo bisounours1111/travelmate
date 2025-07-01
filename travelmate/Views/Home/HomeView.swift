@@ -46,7 +46,7 @@ class SearchViewModel: ObservableObject {
 }
 
 struct HomeView: View {
-    @StateObject private var authService = AuthService()
+    @EnvironmentObject var authService: AuthService
     @StateObject private var destinationService = DestinationService()
     @StateObject private var favoriteService = FavoriteService()
     @StateObject private var searchViewModel = SearchViewModel()
@@ -519,7 +519,3 @@ struct SpecialOfferCardView: View {
         .cornerRadius(15)
     }
 }
-
-#Preview {
-    HomeView()
-} 

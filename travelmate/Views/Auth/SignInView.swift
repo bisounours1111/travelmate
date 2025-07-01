@@ -87,7 +87,6 @@ struct SignInView: View {
                             .foregroundColor(Color("green"))
                     }
                 }
-
                 NavigationLink(destination: HomeView(), isActive: $shouldNavigate) {
                     EmptyView()
                 }

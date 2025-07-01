@@ -1,6 +1,6 @@
 import Foundation
 
-struct Destination: Identifiable, Codable {
+struct Destination: Identifiable, Codable, Hashable {
     let id: String
     let title: String
     let type: String
@@ -12,6 +12,15 @@ struct Destination: Identifiable, Codable {
     let imagePaths: [String]?
     let price: Double?
     let promo: Double?
+    
+    // Implémentation de Hashable
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: Destination, rhs: Destination) -> Bool {
+        return lhs.id == rhs.id
+    }
     
     // Propriétés calculées pour la compatibilité avec l'interface existante
     var name: String { title }
